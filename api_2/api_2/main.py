@@ -13,9 +13,9 @@ async def lifespan(app=FastAPI):
     print('creating db tables ...')
     task= asyncio.create_task(
         start_consumer(
-            topic=settings.KAFKA_TOPIC_MART_PRODUCTS_CRUD,
+            topic=settings.TOPIC_PRODUCTS_CRUD,
             bootstrapserver=settings.BOOTSTRAP_SERVER,
-            consumer_group_id=settings.KAFKA_CONSUMER_GROUP_PRODUCT_MANAGER))
+            consumer_group_id=settings.CONSUMER_GROUP_PRODUCT_MANAGER))
     creat_db_tables()
     try:
         yield

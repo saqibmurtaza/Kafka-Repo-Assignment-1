@@ -1,5 +1,4 @@
 import json
-from aiokafka.errors import KafkaConnectionError
 from fastapi import FastAPI, Depends
 from api_1 import settings
 from .models import Product
@@ -21,7 +20,7 @@ async def read_root():
 
 @app.post("/add_product", response_model=Product)
 async def add_product(product:Product, producer: AIOKafkaProducer=Depends(get_kafka_producer), 
-                      topic=settings.KAFKA_TOPIC_MART_PRODUCTS_CRUD) -> Product:
+                      topic=settings.TOPIC_PRODUCTS_CRUD) -> Product:
 # Serialize the product to a dictionary
     product_dict = product.model_dump()
     product_event= {"operation" : "add", "data" : product_dict}
@@ -34,27 +33,29 @@ async def add_product(product:Product, producer: AIOKafkaProducer=Depends(get_ka
 
 @app.get("/read_product/{id}")
 async def read_product(id:int, producer: AIOKafkaProducer=Depends(get_kafka_producer),
-                topic=settings.KAFKA_TOPIC_MART_PRODUCTS_CRUD):
+                topic=settings.TOPIC_PRODUCTS_CRUD):
     product_event= {"operation" : "read", "data" : {"product_id" : id}}
     product_event_json= json.dumps(product_event).encode('utf-8')
     await producer.send_and_wait(topic, product_event_json)
     return {"message" : "product read request sent"}
 
+@app.delete("/delete_product/{id}")
+async def delete_product(id:int, producer:AIOKafkaProducer=Depends(get_kafka_producer),
+                         topic=settings.TOPIC_PRODUCTS_CRUD):
+    product_event= {"operation" : "delete", "data" : {"product_id": id}}
+    product_event_json = json.dumps(product_event).encode('utf-8')
+    await  producer.send_and_wait(topic, product_event_json)
+    return {"message" : "product delete request sent"}
+
+
 @app.put("/update_product/{id}")
 async def update_product(product_id:int, producer: AIOKafkaProducer=Depends(get_kafka_producer),
-                        topic=settings.KAFKA_TOPIC_MART_PRODUCTS_CRUD):
+                        topic=settings.TOPIC_PRODUCTS_CRUD):
     product_event= {"operation" : "update", "data" : product_id}
     product_event_json= json.dumps(product_event).encode('utf-8')
     await producer.send_and_wait(topic, product_event_json)
     return {"message" : "product update request sent"}
 
-@app.delete("/delete_product/{id}")
-async def delete_product(product_id:int, producer:AIOKafkaProducer=Depends(get_kafka_producer),
-                         topic=settings.KAFKA_TOPIC_MART_PRODUCTS_CRUD):
-    product_event= {"operation" : "delete", "data" : product_id}
-    product_event_json = json.dumps(product_event).encode('utf-8')
-    await  producer.send_and_wait(topic, product_event_json)
-    return {"message" : "product delete request sent"}
 
 origins = [
     "http://localhost:8000",

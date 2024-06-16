@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Session, create_engine
+from sqlmodel import SQLModel, Field
 from typing import Optional
 
 class Product(SQLModel, table=True):
