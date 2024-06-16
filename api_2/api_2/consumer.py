@@ -45,6 +45,16 @@ async def start_consumer(topic, bootstrapserver, consumer_group_id):
                         logger.info(f"Deleted product: {product_id}")
                     else:
                         logger.warning(f"Product with id {product_id} not found for deletion")
+                
+                elif operation == 'read':
+                    product_id= product_data["product_id"]
+                    logging.info(f'Product to be Read with id:{product_id}')
+                    product= session.get(Product, product_id)
+                    if product:
+                        
+                        logging.info(f'Requested Product : {product}')
+                    else:
+                        logging.info(f'Requested Product of Id={product_id} not found in DB')
     except Exception as e:
         logger.error(f"Error processing message: {message.value}, Error: {str(e)}")
     finally:
