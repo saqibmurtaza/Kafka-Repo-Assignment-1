@@ -55,46 +55,23 @@ async def start_consumer(topic, bootstrapserver, consumer_group_id):
                         logging.info(f'Requested Product : {product}')
                     else:
                         logging.info(f'Requested Product of Id={product_id} not found in DB')
+                
+                elif operation == "update":
+                    product_id = product_data['product_id']
+                    logger.info(f"Requested product_id: {product_id}")
+                    product = session.get(Product, product_id)
+                    logger.info(f"Product retrieved for updating: {product}")
+                    if product:
+                        update_data = {k: v for k, v in product_data.items() if k != "product_id"}  # Exclude product_id
+                        for key, value in update_data.items():  # Use update_data instead of product_data
+                            setattr(product, key, value)
+                        session.commit()
+                        session.refresh(product)
+                        logger.info(f"Product updated with new data: {product}")
+                    else:
+                            logger.info(f"Product with id={product_id} not found in DB")
+        
     except Exception as e:
         logger.error(f"Error processing message: {message.value}, Error: {str(e)}")
     finally:
         await consumer.stop()
-
-                # elif operation == 'delete':
-                #     product_id= product_data.get("id")
-                #     logging.info(f'Product to be deleted with Id : {product_id}')
-                #     product= session.get(Product, product_id)
-                #     logging.info(f'Product to be deleted')
-                #     session.delete(product)
-                #     session.commit()
-                #     logging.info(f'Product with ID:{product_id} deleted successfully')
-    #             elif operation == "delete":
-    #                 product_id = product_data.get('id')
-    #                 logger.info(f"Product to be deleted with id: {product_id}")
-    #                 product = await session.get(Product, product_id)
-    #                 if product:
-    #                     logging.info(f"Found Product: {product}")
-    #                     await session.delete(product)
-    #                     await session.commit()
-    #                     logging.info(f"Deleted product: {product_id}")
-    #                 else:
-    #                     logging.warning(f"Product with id {product_id} not found for deletion")
-
-
-    #             elif operation == "update":
-    #                 product = session.get(Product, product_data["id"])
-    #                 if product:
-    #                     product.product_name = product_data["product_name"]
-    #                     product.description = product_data["description"]
-    #                     product.price = product_data["price"]
-    #                     session.commit()
-    #                     logging.info(f"Updated product: {product}")
-
-    #             elif operation == "read":
-    #                 product = session.get(Product, product_data["id"])
-    #                 if product:
-    #                     logging.info(f"Read product: {product}")
-
-    # finally:
-    #     await consumer.stop()
-   

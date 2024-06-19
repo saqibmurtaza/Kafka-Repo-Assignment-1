@@ -1,9 +1,11 @@
 import json
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Body
 from api_1 import settings
 from .models import Product
 from .producer import get_kafka_producer, AIOKafkaProducer
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI(
     title= 'API_1 - Producer & CRUD Endpoints',
@@ -44,17 +46,32 @@ async def delete_product(id:int, producer:AIOKafkaProducer=Depends(get_kafka_pro
                          topic=settings.TOPIC_PRODUCTS_CRUD):
     product_event= {"operation" : "delete", "data" : {"product_id": id}}
     product_event_json = json.dumps(product_event).encode('utf-8')
-    await  producer.send_and_wait(topic, product_event_json)
+    await producer.send_and_wait(topic, product_event_json)
     return {"message" : "product delete request sent"}
 
+class ProductUpdate(BaseModel):
+    product_name: str
+    description: str
+    price: float
 
 @app.put("/update_product/{id}")
-async def update_product(product_id:int, producer: AIOKafkaProducer=Depends(get_kafka_producer),
-                        topic=settings.TOPIC_PRODUCTS_CRUD):
-    product_event= {"operation" : "update", "data" : product_id}
-    product_event_json= json.dumps(product_event).encode('utf-8')
+async def update_product_endpoint(
+    id: int,
+    updates: ProductUpdate,
+    producer: AIOKafkaProducer = Depends(get_kafka_producer),
+    topic: str = settings.TOPIC_PRODUCTS_CRUD  # Corrected typo and added topic parameter
+):
+    product_event = {
+        "operation": "update",
+        "data": {
+            "product_id": id,
+            **updates.dict()  # Flatten the updates into the data dictionary
+        }
+    }
+    product_event_json = json.dumps(product_event).encode('utf-8')  # Corrected encoding typo
     await producer.send_and_wait(topic, product_event_json)
-    return {"message" : "product update request sent"}
+    return {"message": "product update request sent"}
+
 
 
 origins = [
