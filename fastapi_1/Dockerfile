@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install poetry
@@ -17,8 +18,12 @@ RUN poetry config virtualenvs.create false
 
 RUN poetry install --no-root
 
-COPY api_2 /app/api_2
+COPY fastapi_1 /app/fastapi_1
+
+
+# Ensure the protos directory is in the PYTHONPATH
+ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
 
 EXPOSE 8000
 
-CMD ["poetry", "run", "uvicorn", "api_2.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["poetry", "run", "uvicorn", "fastapi_1.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

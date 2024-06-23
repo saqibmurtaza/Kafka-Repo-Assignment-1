@@ -1,41 +1,40 @@
+version: '3.8'
+
 services:
-  fastapi_01:
+  api-1:
     build:
-      context: ./fastapi_1
+      context: ./api_1
       dockerfile: Dockerfile
     volumes:
-      - ./fastapi_1:/app
+      - ./api_1:/app
+      - ./.env:/app/.env
     ports:
       - "8000:8000"
     env_file:
-      - ${PWD}/.env
-
+      - .env
     depends_on:
       - broker
 
-  fastapi_02:
+  api-2:
     build:
-      context: ./fastapi_2
+      context: ./api_2
       dockerfile: Dockerfile.dev
     volumes:
-      - ./fastapi_2:/app
+      - ./api_2:/app
     ports:
       - "8001:8000"
     env_file:
-      - ${PWD}/.env
+      - .env
     depends_on:
       - postgres_db
       - broker
-      
 
   postgres_db:
     image: postgres:latest
     restart: always
     container_name: neon_postgresql
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -73,12 +72,6 @@ services:
       DYNAMIC_CONFIG_ENABLED: "true"
     depends_on:
       - broker
-
-  # protobuf:
-  #   image: protobuf/protoc:27.1
-  #   volumes:
-  #     - ./protos:/protos
-  #   command: ["protoc", "--python_out=.", "/protos/product.proto"]
 
 volumes:
   postgres_data:

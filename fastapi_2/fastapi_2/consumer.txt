@@ -3,6 +3,8 @@ from aiokafka.errors import KafkaConnectionError
 import json, logging, asyncio
 from api_2.database import engine, Session
 from api_2.model import Product
+from protos.product_pb2 import Product as ProductProto, ProductEvent
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

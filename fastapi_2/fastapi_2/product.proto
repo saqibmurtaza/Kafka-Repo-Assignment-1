@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package api;
+
+// Define a message for the Product model
+message Product {
+  int32 id = 1;
+  string product_name = 2;
+  string description = 3;
+  float price = 4;
+}
+
+// Define a message for the operations on the Product
+message ProductEvent {
+  string operation = 1;
+  Product data = 2;
+}

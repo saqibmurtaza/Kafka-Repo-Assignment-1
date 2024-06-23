@@ -1,7 +1,7 @@
 from sqlmodel import Session, create_engine, SQLModel
-from api_2 import settings
+from fastapi_2 import settings
 
-def creat_db_tables():
+def create_db_tables():
     SQLModel.metadata.create_all(engine)
 
 connection_string=str(settings.DATABASE_URL).replace('postgresql', 'postgresql+psycopg')

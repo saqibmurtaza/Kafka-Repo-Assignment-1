@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import creat_db_tables
+from .database import create_db_tables
 from .model import Product
 from .consumer import start_consumer
 from contextlib import asynccontextmanager
-from api_2 import settings
+from fastapi_2 import settings
 import asyncio
 
 
@@ -16,7 +16,8 @@ async def lifespan(app=FastAPI):
             topic=settings.TOPIC_PRODUCTS_CRUD,
             bootstrapserver=settings.BOOTSTRAP_SERVER,
             consumer_group_id=settings.CONSUMER_GROUP_PRODUCT_MANAGER))
-    creat_db_tables()
+    await task
+    create_db_tables()
     try:
         yield
     finally:
@@ -27,7 +28,7 @@ app= FastAPI(
     title='AI_2 - Consumer & DB operations',
     servers=[
         {
-            "url":"http://127.0.0.1:8001",
+            "url":"http://localhost:8000",
             "description":"Server:Uvicorn, port:8001"
         }
     ]
