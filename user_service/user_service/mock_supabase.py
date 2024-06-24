@@ -14,6 +14,7 @@ class MockSupabaseClient:
     class Auth:
         def __init__(self, parent):
             self.parent = parent
+            self.access_token = None
 
         def sign_up(self, user_data):
             if "test@example.com" in user_data["email"]:
@@ -23,15 +24,24 @@ class MockSupabaseClient:
             return {"error": None, "data": {"user": {"id": "user_id", "email": user_data["email"]}}}
 
         def sign_in(self, email, password):
-            if email == "test@example.com" and password == "password":
-                return {"error": None, "data": {"access_token": "fake_token"}}
+            for user in self.parent.users:
+                if user["email"] == email and user["password"] == password:
+                    self.access_token = "fake_token"  # Mock access token
+                    return {"error": None, "data": {"access_token": self.access_token}}
             return {"error": {"message": "Invalid credentials"}}
 
         def set_access_token(self, access_token):
-            pass
+            self.access_token = access_token
 
         def user(self):
-            return {"username": "testuser", "email": "test@example.com", "password": "password"}
+            if self.access_token:
+                # Find user based on access token or return a default user
+                for user in self.parent.users:
+                    if user["email"] == "test@example.com":
+                        return user
+                return {"username": "testuser", "email": "test@example.com", "password": "password"}
+            else:
+                return {"message": "No access token set"}
 
 def get_mock_supabase_client():
     return MockSupabaseClient()

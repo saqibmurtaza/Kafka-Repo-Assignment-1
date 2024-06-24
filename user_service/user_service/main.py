@@ -1,7 +1,10 @@
-import os, supabase
+import os, supabase, logging
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
-from .mock_supabase import get_mock_supabase_client
+from .mock_supabase import get_mock_supabase_client, MockSupabaseClient
+
+logging.basicConfig(level=logging.INFO)
+logger= logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -33,7 +36,9 @@ async def login_user(email: str, password: str):
     response = supabase_client.auth.sign_in(email=email, password=password)
     if response["error"]:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"message": "Login successful"}
+    access_token= response["data"]["access_token"]
+    logging.info(f'Access_token={access_token}')
+    return access_token
 
 @app.get("/profile", response_model=User)
 async def get_user_profile(authorization: str = Header(...)):
@@ -42,11 +47,6 @@ async def get_user_profile(authorization: str = Header(...)):
     user_profile = supabase_client.auth.user()
     return user_profile
 
-@app.get("/mock-users")
+@app.get("/mock-users", response_model=list[User])
 async def get_mock_users():
-    if USE_MOCK_SUPABASE:
-        users = supabase_client.users
-        print(f"Registered users: {users}")  # Debug print
-        return users
-    else:
-        raise HTTPException(status_code=400, detail="Not available in production environment")
+    return supabase_client.users  # Return the list of mock users stored in MockSupabaseClient
