@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "use-it"
+version = "0.1.0"
+description = ""
+authors = ["saqibmurtaza <saqibmurtazakhan@gmai.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.111.0"
+sqlmodel = "^0.0.19"
+psycopg = {extras = ["binary"], version = "^3.1.19"}
+aiokafka = "^0.10.0"
+kafka = "^1.3.5"
+uvicorn = "^0.30.1"
+protobuf = "^5.27.1"
+supabase = "^2.5.1"
+pytest = "^8.2.2"
+pyjwt = "^2.8.0"
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
