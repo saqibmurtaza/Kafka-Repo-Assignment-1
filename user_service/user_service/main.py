@@ -65,4 +65,7 @@ async def get_user_profile(authorization: str = Header(...), supabase_client=Dep
 
 @app.get("/mock-users", response_model=list[User])
 async def get_mock_users(supabase_client=Depends(get_client)):
-    return supabase_client.users  # Return the list of mock users stored in MockSupabaseClient
+    register_users= supabase_client.users
+    logging.info(f'Register_Users : {register_users}')
+    return register_users  
+                 # Return the list of mock users stored in MockSupabaseClient

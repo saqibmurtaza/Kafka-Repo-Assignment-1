@@ -3,7 +3,8 @@ import os, supabase
 
 '''
 Now, every time you call get_client, it will return the same 
-instance of MockSupabaseClient, and the users list will persist between calls.
+instance of MockSupabaseClient, and the users list will persist 
+between calls.
 '''
 
 client= MockSupabaseClient()

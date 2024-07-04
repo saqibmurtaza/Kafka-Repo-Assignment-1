@@ -1,8 +1,8 @@
 import os, logging
 from fastapi import FastAPI, Depends, HTTPException
 from .dependencies import get_mock_supabase_client, get_supabase_cleint
-from .mock_supabase import MockSupabaseClient, MockSupabaseAuth
-from models import User, Token
+from .mock_supabase import MockSupabaseClient
+from models import User
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
