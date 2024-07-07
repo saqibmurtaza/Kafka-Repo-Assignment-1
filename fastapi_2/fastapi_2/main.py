@@ -1,41 +1,44 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from .database import create_db_tables
 from .model import Product
 from .consumer import start_consumer
 from contextlib import asynccontextmanager
 from fastapi_2 import settings
-import asyncio
+import asyncio, logging
 
+logging.basicConfig(level=logging.INFO)
+logger= logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app=FastAPI):
-    print('creating db tables ...')
-    task= asyncio.create_task(
+async def lifespan(app:FastAPI):
+    logger.info('creating db tables ...')
+    consumer_task= asyncio.create_task(
         start_consumer(
             topic=settings.TOPIC_PRODUCTS_CRUD,
             bootstrapserver=settings.BOOTSTRAP_SERVER,
             consumer_group_id=settings.CONSUMER_GROUP_PRODUCT_MANAGER))
-    await task
     create_db_tables()
     try:
         yield
     finally:
-        task.cancel
+        consumer_task.cancel()
+        await consumer_task
     
 app= FastAPI(
     lifespan=lifespan,
-    title='AI_2 - Consumer & DB operations',
+    title='API_2 - Consumer & DB operations',
     servers=[
         {
-            "url":"http://localhost:8000",
+            "url":"http://localhost:8001",
             "description":"Server:Uvicorn, port:8001"
         }
     ]
 )
+
 @app.get("/")
 async def read_root():
-    return {"message":"AI_2 - Consumer & DB operations"}
+    return {"message":"API_2 - Consumer & DB operations"}
 
 origins = [
     "http://localhost:8000",
@@ -50,6 +53,8 @@ origins = [
     "http://127.0.0.1:8080", 
     "https://localhost:8080",  
     "https://127.0.0.1:8080", 
+
+
 # Add any other origins if needed
 ]
 app.add_middleware(
@@ -59,3 +64,4 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
