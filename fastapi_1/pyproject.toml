@@ -1,8 +1,9 @@
 [tool.poetry]
-name = "fastapi-1"
+name = "fastapi_1"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "A FastAPI-based service for managing products, producing messages, and delivering web APIs."
+
+authors = ["Saqib Murtaza <saqibmurtazakhan@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

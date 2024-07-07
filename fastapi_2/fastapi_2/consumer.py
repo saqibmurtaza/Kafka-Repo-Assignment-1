@@ -4,13 +4,10 @@ import logging, asyncio
 from .database import engine, Session
 from .model import Product
 from fastapi_2.product_pb2 import ProductEvent
-import os, sys
+import os, sys, requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Add the protos directory to the path
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'protos_file')))
 
 async def start_consumer(topic, bootstrapserver, consumer_group_id):
     consumer = AIOKafkaConsumer(topic, bootstrap_servers=bootstrapserver, group_id=consumer_group_id)
@@ -54,10 +51,10 @@ async def start_consumer(topic, bootstrapserver, consumer_group_id):
                         session.commit()
                         session.refresh(product)
                         logging.info(f"Added product: {product}")
+                        
                     except Exception as e:
                         session.rollback()
                         logging.error(f"Failed to add product: {product}, Error: {str(e)}")
-
                 elif operation == "delete":
                     product_id = product_data_proto.id
                     product = session.get(Product, product_id)
