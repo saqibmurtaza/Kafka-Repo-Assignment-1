@@ -1,5 +1,5 @@
-import sys, os, logging
 from fastapi import FastAPI, Depends, Body
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi_1 import settings
 from .models import Product
 from .producer import get_kafka_producer, AIOKafkaProducer
@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
 from fastapi_1.product_pb2 import Product as ProductProto, ProductEvent
+import sys, os, logging
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
@@ -104,3 +105,26 @@ async def update_product_endpoint(
     # Send the serialized bytes
     await producer.send_and_wait(topic, product_event_bytes)
     return {"message": "product update request sent"}
+
+origins = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://localhost:8000",
+    "https://127.0.0.1:8000",
+    "http://127.0.0.1:8001",
+    "http://localhost:8001",
+    "https://localhost:8001",
+    "https://127.0.0.1:8001",
+    "http://localhost:8080",  
+    "http://127.0.0.1:8080", 
+    "https://localhost:8080",  
+    "https://127.0.0.1:8080", 
+# Add any other origins if needed
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
