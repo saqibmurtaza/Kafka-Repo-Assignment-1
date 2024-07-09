@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package notification;
+
+message NotificationPayloadProto {
+    int32 order_id = 1;
+    string status = 2;
+    string user_email = 3;
+    string user_phone = 4;
+}

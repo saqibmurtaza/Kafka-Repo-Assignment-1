@@ -9,8 +9,11 @@ import os, sys, requests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def start_consumer(topic, bootstrapserver, consumer_group_id):
-    consumer = AIOKafkaConsumer(topic, bootstrap_servers=bootstrapserver, group_id=consumer_group_id)
+async def start_consumer(topic, bootstrap_server, consumer_group_id):
+    consumer = AIOKafkaConsumer(
+        topic, 
+        bootstrap_servers=bootstrap_server, 
+        group_id=consumer_group_id)
     # Retry mechanism to keep up the consumer
     while True:
         try:

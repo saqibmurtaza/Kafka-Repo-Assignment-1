@@ -37,6 +37,8 @@ services:
       - "8002:8002"
     depends_on:
       - broker
+    env_file:
+      - ./notification_service/notification_service/.env
   
   order_service:
     build:
@@ -46,10 +48,10 @@ services:
       - ./order_service:/app
     ports:
       - "8003:8003"
-    env_file:
-      - ./.env
     depends_on:
       - broker
+    env_file:
+      - ./order_service/order_service/.env
 
   postgres_db:
     image: postgres:latest

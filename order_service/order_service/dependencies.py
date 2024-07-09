@@ -1,5 +1,10 @@
 from .mock_order_service import MockOrderService
-import os, supabase
+from aiokafka.errors import KafkaConnectionError
+from order_service import settings
+import os, supabase, logging
+
+logging.basicConfig(level=logging.INFO)
+logger= logging.getLogger(__name__)
 
 # Singleton instance of MockOrderService
 mock_order_service= MockOrderService()

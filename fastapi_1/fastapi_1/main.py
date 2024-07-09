@@ -12,9 +12,6 @@ import sys, os, logging
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
-# Add the protos directory to the path
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'protos_file')))
-
 app = FastAPI(
     title= 'API_1 - Producer & CRUD Endpoints',
     servers=[

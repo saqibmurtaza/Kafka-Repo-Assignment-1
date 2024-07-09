@@ -1,1 +1,7 @@
-.env
+# .env
+__pycache__/
+*.pyc
+fastapi_1/fastapi_1/__pycache__/
+fastapi_2/fastapi_2/__pycache__/
+order_service/order_service/__pycache__/
+

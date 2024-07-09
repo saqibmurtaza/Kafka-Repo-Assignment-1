@@ -1,0 +1,19 @@
+
+syntax = "proto3";
+
+package order;
+
+message NotificationPayloadProto {
+    int32 order_id = 1;
+    string status = 2;
+    string user_email = 3;
+    string user_phone = 4;
+}
+
+message OrderProto {
+    int32 id = 1;
+    string item_name = 2;
+    int32 quantity = 3;
+    float price = 4;
+    string status = 5;
+}

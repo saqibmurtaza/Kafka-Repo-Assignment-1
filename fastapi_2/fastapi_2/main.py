@@ -1,7 +1,6 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import create_db_tables
-from .model import Product
 from .consumer import start_consumer
 from contextlib import asynccontextmanager
 from fastapi_2 import settings

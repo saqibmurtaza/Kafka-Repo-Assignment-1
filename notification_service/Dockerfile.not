@@ -1,7 +1,5 @@
 FROM python:3.12
 
-LABEL maintainer="saqibmurtazakhan@gmail.com"
-
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
@@ -13,17 +11,19 @@ RUN apt-get update && apt-get install -y \
 RUN pip install poetry
 
 COPY pyproject.toml poetry.lock /app/
+COPY ./notification_service/.env /app/.env
 
 RUN poetry config virtualenvs.create false
 
 RUN poetry install --no-root
 
-COPY fastapi_2 /app/fastapi_2
+COPY notification_service /app/notification_service
 
-
-# Ensure the protos directory is in the PYTHONPATH
 ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
 
-EXPOSE 8001
+EXPOSE 8002
 
-CMD ["poetry", "run", "uvicorn", "fastapi_2.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+CMD ["poetry", "run", "uvicorn", "notification_service.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+
+
+

@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 # env_file_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
 env_file_path = '.env'
 
+
 # Check if the .env file exists
 if os.path.exists(env_file_path):
     logger.info('Loading environment variables from %s', env_file_path)
