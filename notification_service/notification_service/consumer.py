@@ -28,7 +28,6 @@ async def notify_order_status(payload: NotificationPayload):
         to_phone=payload.user_phone,
         message=f"Your order with ID {payload.order_id} has been {payload.status}."
     )
-    logging.info(f'Notification sent successfully')
     return {"message": "Notification sent successfully"}
 
 async def consume_notifications(topic, bootstrap_server, consumer_group_id):
@@ -49,7 +48,8 @@ async def consume_notifications(topic, bootstrap_server, consumer_group_id):
                 user_phone=payload_proto.user_phone
             )
             await notify_order_status(notification_payload)
-            logger.info(f"Consumed and processed message for order_id {notification_payload.order_id}")
+            logger.info(f"Consumed and processed message for 
+                        order_id {notification_payload.order_id}")
     finally:
         await start_consumer.stop()
 

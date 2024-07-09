@@ -48,7 +48,7 @@ class NotificationPayload(BaseModel):
     user_email: str
     user_phone: str
 
-@app.post("/notifications/notify/order/status")
+@app.post("/manual_notifications/notify/order/status")
 async def notify_order_status(payload: NotificationPayload):
     notification_service = NotificationService()
     notification_service.send_email(
@@ -81,7 +81,7 @@ async def consume_notifications(topic, bootstrap_servers, consumer_group_id):
                 user_phone=payload_proto.user_phone
             )
             await notify_order_status(notification_payload)
-            logger.info(f"Consumed and processed message for order_id {notification_payload.order_id}")
+            logger.info(f"Consumed and processed message for order={notification_payload.order_id}, Action_Performed = {notification_payload.status}")
     except asyncio.CancelledError:
         logger.info("Consumer task cancelled during shutdown")
     finally:
