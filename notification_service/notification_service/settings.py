@@ -12,6 +12,7 @@ try:
     # Load Kafka-related environment variables
     BOOTSTRAP_SERVER = config('BOOTSTRAP_SERVER', cast=str)
     TOPIC_ORDER_STATUS = config('TOPIC_ORDER_STATUS')
+    TOPIC_USER_EVENTS= config('TOPIC_USER_EVENTS')
     CONSUMER_GROUP_NOTIFYME_MANAGER = config('CONSUMER_GROUP_NOTIFYME_MANAGER', cast=str)
 
     # Log system-generated messages
