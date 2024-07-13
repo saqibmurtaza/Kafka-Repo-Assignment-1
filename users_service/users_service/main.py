@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Body
-from .dependencies import get_mock_supabase_client, get_supabase_client
+from users_service.dependencies import get_mock_supabase_client, get_supabase_cleint
 from .mock_supabase import MockSupabaseClient
 from models import User
-from use_it import settings
+from users_service import settings
 from aiokafka import AIOKafkaProducer
 from .producer import get_kafka_producer
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ def get_client():
     if mock_supabase:
         return get_mock_supabase_client()
     else:
-        return get_supabase_client()
+        return get_supabase_cleint()
 
 class UserMessage(BaseModel):
     action: str

@@ -1,6 +1,6 @@
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
-from order_service import settings
+from users_service import settings
 import logging
 
 logging.basicConfig(level=logging.INFO)
