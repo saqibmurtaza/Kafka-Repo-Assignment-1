@@ -1,3 +1,30 @@
+# FROM python:3.12
+
+# LABEL maintainer="saqibmurtazakhan@gmail.com"
+
+# WORKDIR /app
+
+# RUN apt-get update && apt-get install -y \
+# build-essential \
+# libpq-dev \
+# protobuf-compiler \
+# && rm -rf /var/lib/apt/lists/*
+
+# RUN pip install poetry
+
+# COPY pyproject.toml poetry.lock /app/
+# COPY /users_service/.env /app/.env
+
+# RUN poetry config virtualenvs.create false
+
+# RUN poetry install
+
+# COPY users_service /app/users_service
+
+# EXPOSE 8009
+
+# CMD [ "poetry", "run", "uvicorn", "users_service.main:app", "--host", "0.0.0.0", "--port", "8009", "--reload" ]
+
 FROM python:3.12
 
 LABEL maintainer="saqibmurtazakhan@gmail.com"
@@ -5,22 +32,25 @@ LABEL maintainer="saqibmurtazakhan@gmail.com"
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-build-essential \
-libpq-dev \
-protobuf-compiler \
-&& rm -rf /var/lib/apt/lists/*
+    build-essential \
+    libpq-dev \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install poetry
 
 COPY pyproject.toml poetry.lock /app/
-COPY /users_service/.env /app/.env
+COPY users_service/.env /app/.env
 
 RUN poetry config virtualenvs.create false
 
-RUN poetry install
+RUN poetry install --no-root
 
 COPY users_service /app/users_service
 
+# Ensure the protos directory is in the PYTHONPATH
+ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
+
 EXPOSE 8005
 
-CMD [ "poetry", "run", "uvicorn", "users_service.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload" ]
+CMD ["poetry", "run", "uvicorn", "users_service.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload"]

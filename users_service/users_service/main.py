@@ -12,7 +12,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 mock_supabase = os.getenv('MOCK_SUPABASE', 'true').lower() == 'true'
 
-app = FastAPI()
+app = FastAPI(
+    title= 'SaqibShopSphere _ Users Service',
+    servers=[
+        {
+        "url": "http://localhost:8005",
+        "description": "Server:Uvicorn, port:8005"
+        }]
+    )
 
 def get_client():
     if mock_supabase:

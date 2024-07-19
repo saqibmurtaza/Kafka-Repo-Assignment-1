@@ -1,40 +1,79 @@
-version: '3.8'
-
 services:
-  api-1:
+  fastapi_01:
     build:
-      context: ./api_1
-      dockerfile: Dockerfile
+      context: ./fastapi_1
+      dockerfile: Dockerfile.prod
     volumes:
-      - ./api_1:/app
-      - ./.env:/app/.env
+      - ./fastapi_1:/app
     ports:
       - "8000:8000"
     env_file:
-      - .env
+      - ${PWD}/.env
+
     depends_on:
       - broker
 
-  api-2:
+  fastapi_02:
     build:
-      context: ./api_2
-      dockerfile: Dockerfile.dev
+      context: ./fastapi_2
+      dockerfile: Dockerfile.cons
     volumes:
-      - ./api_2:/app
+      - ./fastapi_2:/app
     ports:
-      - "8001:8000"
+      - "8001:8001"
     env_file:
       - .env
     depends_on:
       - postgres_db
       - broker
+      
+  notification_service:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile.not
+    volumes:
+      - ./notification_service:/app
+    ports:
+      - "8002:8002"
+    depends_on:
+      - broker
+    env_file:
+      - ./notification_service/notification_service/.env
+  
+  users_service:
+    build:
+      context: ./users_service
+      dockerfile: Dockerfile.use
+    volumes:
+      - ./users_service:/app
+    ports:
+      - "8005:8005"
+    depends_on:
+      - broker
+    env_file:
+      - ./users_service/users_service/.env
+  
+  order_service:
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile.ord
+    volumes:
+      - ./order_service:/app
+    ports:
+      - "8003:8003"
+    depends_on:
+      - broker
+    env_file:
+      - ./order_service/order_service/.env
 
   postgres_db:
     image: postgres:latest
     restart: always
     container_name: neon_postgresql
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

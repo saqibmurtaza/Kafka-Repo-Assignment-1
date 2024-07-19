@@ -15,7 +15,7 @@ async def lifespan(app:FastAPI):
     consumer_task= asyncio.create_task(
         start_consumer(
             topic=settings.TOPIC_PRODUCTS_CRUD,
-            bootstrapserver=settings.BOOTSTRAP_SERVER,
+            bootstrap_server=settings.BOOTSTRAP_SERVER,
             consumer_group_id=settings.CONSUMER_GROUP_PRODUCT_MANAGER))
     create_db_tables()
     try:
@@ -26,7 +26,7 @@ async def lifespan(app:FastAPI):
     
 app= FastAPI(
     lifespan=lifespan,
-    title='API_2 - Consumer & DB operations',
+    title='SaqibShopSphere _ Consumer & DB operations',
     servers=[
         {
             "url":"http://localhost:8001",

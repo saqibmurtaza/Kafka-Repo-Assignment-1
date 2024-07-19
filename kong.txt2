@@ -1,0 +1,94 @@
+# _format_version: "2.1"
+# services:  
+#   - name: fastapi-service  
+#     url: http://fastapi_01:8006  
+# routes:  
+#   - name: fastapi-route  
+#     service: fastapi-service  
+#     paths:  
+#       - /api/v1  
+#     hosts:  
+#       - fastapi_01  
+#     strip_path: true
+          
+#   - name: fastapi_02
+#     url: http://fastapi_02:8007
+#     routes:
+#       - name: fastapi_02-route
+#         paths:
+#           - /api/v1/fastapi_02
+
+#   - name: notification_service
+#     url: http://notification_service:8008
+#     routes:
+#       - name: notification_service-route
+#         paths:
+#           - /api/v1/notifications
+
+#   - name: users_service
+#     url: http://users_service:8009
+#     routes:
+#       - name: users_service-route
+#         paths:
+#           - /api/v1/users
+  
+#   - name: order_service
+#     url: http://order_service:8010
+#     routes:
+#       - name: order_service-route
+#         paths:
+#           - /api/v1/orders
+
+# networks:
+#   kong-net:
+#     name: kong-net
+
+# _format_version: "2.1"  
+# _transform: true  
+
+# services:  
+#   - name: fastapi-01 
+#     url: http://fastapi_01:8006  
+#     hosts:  
+#       - fastapi-01
+
+#   - name: fastapi-02  
+#     url: http://fastapi_02:8007  
+#     hosts:  
+#       - fastapi-02
+
+#   - name: postgres_db
+#     url: http://postgres_db:5432  
+#     hosts:  
+#       - postgres_db
+
+#   - name: broker  
+#     url: http://broker:9092 
+#     hosts:  
+#       - broker
+
+#   networks:
+#     kong-net:
+#       name: kong-net
+
+_format_version: "2.1"
+_transform: true
+
+services:
+  - name: fastapi-01
+    url: http://fastapi_01:8006
+    routes:
+      - name: fastapi_01_route
+        paths:
+          - /fastapi_01
+
+  - name: broker
+    url: http://broker:9092
+    routes:
+      - name: broker_route
+        paths:
+          - /broker
+
+networks:
+  kong-net:
+    name: kong-net

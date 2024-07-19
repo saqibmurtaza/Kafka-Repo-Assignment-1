@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
 app = FastAPI(
-    title= 'API_1 - Producer & CRUD Endpoints',
+    title= 'ShopSphere _ Producer & API Endpoints',
     servers=[
         {
         "url": "http://localhost:8000",

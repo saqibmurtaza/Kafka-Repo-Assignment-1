@@ -1,0 +1,308 @@
+version: '2.1'
+
+networks:
+  kong-net:
+    name: kong-net
+  
+services:
+
+  #######################################
+  # Postgres: The database used by Kong
+  #######################################
+  kong-database:
+    image: postgres:latest
+    container_name: kong-db
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: on-failure
+    volumes:
+      - kong-data:/var/lib/postgresql/data
+
+  #######################################
+  # Kong database migration
+  #######################################
+  kong-migrations:
+    image: kong:latest
+    command: kong migrations bootstrap && kong migrations up && kong migrations finish
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+    networks:
+      - kong-net
+    restart: on-failure
+
+  #######################################
+  # Kong: The API Gateway
+  #######################################
+  kong:
+    image: kong:latest
+    container_name: kong-api
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    env_file:
+      - ./kong.env  # Use the kong.env file
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002  # Add this line for the Admin GUI
+      # KONG_DECLARATIVE_CONFIG: "/opt/kong/kong.yaml"  # Mount point for kong.yaml
+    networks:
+      - kong-net
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"  # Add this line for the Admin GUI
+    volumes:
+      # - ./kong.yaml:/opt/kong/kong.yaml  # Mounting kong.yaml into Kong container
+      # - ./kong.yml:/opt/kong/kong.yml
+      - kong-data:/var/lib/postgresql/data  # Mount Kong's PostgreSQL data directory to a volume
+      - kong-data:/var/lib/kong
+
+    # command: kong start -v -c /opt/kong/kong.yaml
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    restart: on-failure
+
+  fastapi_01:
+    build:
+      context: ./fastapi_1
+      dockerfile: Dockerfile.prod
+    volumes:
+      - ./fastapi_1:/app
+    ports:
+      - "8006:8006"
+    env_file:
+      - ${PWD}/.env
+    depends_on:
+      - broker
+    networks:
+      - kong-net
+
+  kong_fastapi_01:  
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: fastapi-01  
+      KONG_SERVICE_URL: http://fastapi_01:8006  
+    networks:  
+      - kong-net
+    restart: on-failure
+
+  # fastapi_02:
+  #   build:
+  #     context: ./fastapi_2
+  #     dockerfile: Dockerfile.cons
+  #   volumes:
+  #     - ./fastapi_2:/app
+  #   ports:
+  #     - "8007:8007"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - postgres_db_fastapi_02
+  #     - broker
+  #   networks:
+  #     - kong-net
+
+  # kong_fastapi_02:  
+  #   image: kong:latest  
+  #   depends_on:  
+  #     - kong  
+  #   environment:  
+  #     KONG_SERVICE_NAME: fastapi-02  
+  #     KONG_SERVICE_URL: http://fastapi_02:8007  
+  #   networks:  
+  #     - kong-net
+  #   restart: on-failure
+
+  notification_service:
+    build:
+      context: ./notification_service
+      dockerfile: Dockerfile.not
+    volumes:
+      - ./notification_service:/app
+    ports:
+      - "8008:8008"
+    depends_on:
+      - broker
+    env_file:
+      - ./notification_service/notification_service/.env
+    networks:
+      - kong-net
+
+  kong_notification_service:  
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: notification_service  
+      KONG_SERVICE_URL: http://notification_service:8008 
+    networks:  
+      - kong-net
+    restart: on-failure
+
+  users_service:
+    build:
+      context: ./users_service
+      dockerfile: Dockerfile.use
+    volumes:
+      - ./users_service:/app
+    ports:
+      - "8009:8009"
+    depends_on:
+      - broker
+    env_file:
+      - ./users_service/users_service/.env
+    networks:
+      - kong-net
+
+  kong_users_service:
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: users_service
+      KONG_SERVICE_URL: http://users_service:8009 
+    networks:  
+      - kong-net
+    restart: on-failure
+
+  order_service:
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile.ord
+    volumes:
+      - ./order_service:/app
+    ports:
+      - "8010:8010"
+    depends_on:
+      - broker
+    env_file:
+      - ./order_service/order_service/.env
+    networks:
+      - kong-net
+
+  kong_order_service:
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: order_service
+      KONG_SERVICE_URL: http://order_service:8010 
+    networks:  
+      - kong-net
+    restart: on-failure
+
+  # postgres_db_fastapi_02:
+  #   image: postgres:latest
+  #   restart: always
+  #   container_name: neon_postgresql_fastapi_02
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   volumes:
+  #     - postgres_data_fastapi_02:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - kong-net
+
+  # kong_postgres_db_fastapi_02:  
+  #   image: kong:latest  
+  #   depends_on:  
+  #     - kong  
+  #   environment:  
+  #     KONG_SERVICE_NAME: postgres_db_fastapi_02
+  #     KONG_SERVICE_URL: http://postgres_db_fastapi_02:5432  
+  #   networks:  
+  #     - kong-net
+  #   restart: on-failure
+
+  broker:
+    image: apache/kafka:3.7.0
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:9092"
+    networks:
+      - kong-net
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    
+  kong_broker:  
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: broker
+      KONG_SERVICE_URL: http://broker:9092
+    networks:  
+      - kong-net
+    restart: on-failure
+
+  kafka_ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: 'Local Kafka Cluster'
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 'broker:19092'
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - broker
+    networks:
+      - kong-net
+
+  kong_kafka_ui:  
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: kafka_ui
+      KONG_SERVICE_URL: http://kafka_ui:8080
+    networks:  
+      - kong-net
+    restart: on-failure
+
+volumes:
+  kong-data:
+    driver: local
+

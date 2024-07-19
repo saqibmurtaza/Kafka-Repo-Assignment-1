@@ -7,7 +7,14 @@ import logging, os
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
-app=FastAPI()
+app = FastAPI(
+    title= 'ShopSphere _ Inventory Service',
+    servers=[
+        {
+        "url": "http://localhost:8005",
+        "description": "Server:Uvicorn, port:8005"
+        }]
+    )
 
 mock_supabase= os.getenv("MOCK_SUPABSE", 'true').lower() == 'true'
 

@@ -17,6 +17,7 @@ protobuf = "^5.27.1"
 supabase = "^2.5.1"
 pytest = "^8.2.2"
 pyjwt = "^2.8.0"
+dapr = "^1.13.0"
 
 
 

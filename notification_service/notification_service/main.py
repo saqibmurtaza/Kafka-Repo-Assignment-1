@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title='Notification Service',
+    title='ShopSphere _ Notification Service',
     servers=[
         {
             "url": "http://localhost:8002",

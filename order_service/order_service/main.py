@@ -13,7 +13,14 @@ import os, logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(
+    title= 'SaqibShopSphere _ Order Service',
+    servers=[
+        {
+        "url": "http://localhost:8003",
+        "description": "Server:Uvicorn, port:8003"
+        }]
+    )
 
 mock_supabase = os.getenv('MOCK_SUPABASE', 'True').lower() == 'true'
 
@@ -46,7 +53,7 @@ async def send_notification(payload: NotificationPayload, producer: AIOKafkaProd
 
 @app.get("/")
 def read_root():
-    return {"message": "Order Service"}
+    return {"message": "Order Service for Saqib's online mart"}
 
 @app.post("/create_order", response_model=Order)
 async def create_order(
