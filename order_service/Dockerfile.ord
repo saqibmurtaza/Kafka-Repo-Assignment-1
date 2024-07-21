@@ -1,32 +1,3 @@
-# FROM python:3.12
-
-# LABEL maintainer="saqibmurtazakhan@gmail.com"
-
-# WORKDIR /app
-
-# RUN apt-get update && apt-get install -y \
-# build-essential \
-# libpq-dev \
-# protobuf-compiler \
-# && rm -rf /var/lib/apt/lists/*
-
-# RUN pip install poetry
-
-# COPY pyproject.toml poetry.lock /app/
-# COPY ./order_service/.env /app/.env
-
-# RUN poetry config virtualenvs.create false
-
-# RUN poetry install
-
-# COPY order_service /app/order_service
-
-# ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
-
-# EXPOSE 8010
-
-# CMD ["poetry", "run", "uvicorn", "order_service.main:app", "--host", "0.0.0.0", "--port", "8010", "--reload"]
-
 FROM python:3.12
 
 LABEL maintainer="saqibmurtazakhan@gmail.com"
@@ -34,10 +5,10 @@ LABEL maintainer="saqibmurtazakhan@gmail.com"
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
-    protobuf-compiler \
-    && rm -rf /var/lib/apt/lists/*
+build-essential \
+libpq-dev \
+protobuf-compiler \
+&& rm -rf /var/lib/apt/lists/*
 
 RUN pip install poetry
 
@@ -46,13 +17,13 @@ COPY ./order_service/.env /app/.env
 
 RUN poetry config virtualenvs.create false
 
-RUN poetry install --no-root
+RUN poetry install
 
 COPY order_service /app/order_service
 
-# Ensure the protos directory is in the PYTHONPATH
 ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
 
-EXPOSE 8003
+EXPOSE 8010
 
-CMD ["poetry", "run", "uvicorn", "order_service.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]
+CMD ["poetry", "run", "uvicorn", "order_service.main:app", "--host", "0.0.0.0", "--port", "8010", "--reload"]
+

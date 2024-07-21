@@ -150,11 +150,12 @@ services:
       context: ./fastapi_1
       dockerfile: Dockerfile.prod
     volumes:
-      - ./fastapi_1:/app
+      - ./fastapi_1/fastapi_1:/app
     ports:
       - "8000:8000"
     env_file:
-      - ${PWD}/.env
+      # - ${PWD}/.env
+      - ./fastapi_1/fastapi_1
     depends_on:
       - broker
     labels:
@@ -170,7 +171,7 @@ services:
       context: ./fastapi_2
       dockerfile: Dockerfile.cons
     volumes:
-      - ./fastapi_2:/app
+      - ./fastapi_2/fastapi_2:/app
     ports:
       - "8001:8001"
     env_file:
@@ -191,7 +192,7 @@ services:
       context: ./notification_service
       dockerfile: Dockerfile.not
     volumes:
-      - ./notification_service:/app
+      - ./notification_service/notification_service:/app
     ports:
       - "8002:8002"
     depends_on:
@@ -211,7 +212,7 @@ services:
       context: ./users_service
       dockerfile: Dockerfile.use
     volumes:
-      - ./users_service:/app
+      - ./users_service/users_service:/app
     ports:
       - "8005:8005"
     depends_on:
@@ -231,7 +232,7 @@ services:
       context: ./order_service
       dockerfile: Dockerfile.ord
     volumes:
-      - ./order_service:/app
+      - ./order_service/order_service:/app
     ports:
       - "8003:8003"
     depends_on:
@@ -251,7 +252,7 @@ services:
       context: ./inventory_service
       dockerfile: Dockerfile.inv
     volumes:
-      - ./inventory_service:/app
+      - ./inventory_service/inventory_service:/app
     ports:
       - "8008:8008"
     depends_on:

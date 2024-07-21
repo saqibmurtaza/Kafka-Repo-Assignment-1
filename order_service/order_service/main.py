@@ -55,7 +55,7 @@ async def send_notification(payload: NotificationPayload, producer: AIOKafkaProd
 def read_root():
     return {"message": "Order Service for Saqib's online mart"}
 
-@app.post("/create_order", response_model=Order)
+@app.post("/orders", response_model=Order)
 async def create_order(
     order: Order,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
@@ -75,16 +75,17 @@ async def create_order(
 
     return created_order
 
-@app.put("/update_order/{order_id}", response_model=Order)
+@app.put("/orders/{order_id}", response_model=Order)
 async def update_order(
     order_id: int,
     order: Order,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     service: MockOrderService = Depends(get_order)
 ):
-    update_data = order.model_dump()
+    update_data = {k: v for k, v in order.model_dump().items() if k != 'id'}
     updated_order = service.update_order(order_id, update_data)
     logging.info(f'Updated_Order : {updated_order}')
+    logging.info(f'Updating order with ID {order_id} using data: {update_data}')
 
     if updated_order:
         notification_payload = NotificationPayload(
@@ -98,7 +99,7 @@ async def update_order(
     else:
         raise HTTPException(status_code=404, detail="Order not found")
 
-@app.delete("/delete_order/{order_id}", response_model=dict)
+@app.delete("/orders/{order_id}", response_model=dict)
 async def delete_order(
     order_id: int,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
@@ -117,6 +118,6 @@ async def delete_order(
     else:
         raise HTTPException(status_code=404, detail="Order not found")
 
-@app.get("/orders_list", response_model=List[Order])
+@app.get("/orders", response_model=List[Order])
 async def get_orders_list(service: MockOrderService = Depends(get_order)):
     return service.orders_list()
