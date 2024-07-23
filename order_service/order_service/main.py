@@ -2,30 +2,45 @@ from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List
 from aiokafka import AIOKafkaProducer
-from order_service import settings
 from .producer import get_kafka_producer
+from .consumer import start_consumer
 from .dependencies import get_mock_order_service, get_real_order_service
 from .model import Order
 from .order_pb2 import NotificationPayloadProto
-from order_service.mock_order_service import MockOrderService
-import os, logging
+from .settings import settings
+import os, logging, asyncio
+from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    logger.info('lifespan function ...')
+    consumer_task= asyncio.create_task(
+        start_consumer(
+            topic=settings.TOPIC_ORDER_STATUS,
+            bootstrap_server=settings.BOOTSTRAP_SERVER,
+            consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER))
+
+    try:
+        yield
+    finally:
+        consumer_task.cancel()
+        await consumer_task
+
 app = FastAPI(
-    title= 'SaqibShopSphere _ Order Service',
+    title='SaqibShopSphere _ Order Service',
     servers=[
         {
-        "url": "http://localhost:8003",
-        "description": "Server:Uvicorn, port:8003"
-        }]
-    )
+            "url": "http://localhost:8010",
+            "description": "Server:Uvicorn, port:8010"
+        }
+    ]
+)
 
-mock_supabase = os.getenv('MOCK_SUPABASE', 'True').lower() == 'true'
-
-def get_order():
-    if mock_supabase:
+def get_order_service():
+    if settings.MOCK_SUPABASE:
         return get_mock_order_service()
     return get_real_order_service()
 
@@ -36,7 +51,7 @@ class NotificationPayload(BaseModel):
     user_phone: str
 
 async def send_notification(payload: NotificationPayload, producer: AIOKafkaProducer,
-                            topic:str=settings.TOPIC_ORDER_STATUS):
+                            topic: str = settings.TOPIC_ORDER_STATUS):
     await producer.start()
     try:
         payload_proto = NotificationPayloadProto(
@@ -59,7 +74,7 @@ def read_root():
 async def create_order(
     order: Order,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service: MockOrderService = Depends(get_order)
+    service = Depends(get_order_service)
 ):
     order_data = order.model_dump()  # Convert the order instance into a dictionary
     created_order = service.create_order(order_data)
@@ -80,7 +95,7 @@ async def update_order(
     order_id: int,
     order: Order,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service: MockOrderService = Depends(get_order)
+    service = Depends(get_order_service)
 ):
     update_data = {k: v for k, v in order.model_dump().items() if k != 'id'}
     updated_order = service.update_order(order_id, update_data)
@@ -103,7 +118,7 @@ async def update_order(
 async def delete_order(
     order_id: int,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service: MockOrderService = Depends(get_order)
+    service = Depends(get_order_service)
 ):
     success = service.delete_order(order_id)
     if success:
@@ -119,5 +134,5 @@ async def delete_order(
         raise HTTPException(status_code=404, detail="Order not found")
 
 @app.get("/orders", response_model=List[Order])
-async def get_orders_list(service: MockOrderService = Depends(get_order)):
+async def get_orders_list(service = Depends(get_order_service)):
     return service.orders_list()

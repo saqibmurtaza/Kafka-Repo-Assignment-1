@@ -13,7 +13,6 @@ protobuf-compiler \
 RUN pip install poetry
 
 COPY pyproject.toml poetry.lock /app/
-COPY ./order_service/.env /app/.env
 
 RUN poetry config virtualenvs.create false
 

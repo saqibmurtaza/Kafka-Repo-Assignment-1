@@ -1,6 +1,6 @@
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
-from order_service.settings import settings
+from inventory_service.settings import settings
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -12,10 +12,15 @@ async def get_kafka_producer():
    
     try:
         yield producer
-        logger.info('Producer Startup ...')
+        logging.info('Producer Startup ...')
    
     except KafkaConnectionError as e:
-        logger.error(f'Producer Startup Error : {e}')
+        logging.error(f'Producer Startup Error : {e}')
    
     finally:
         await producer.stop()
+
+async def send_inventory_update_message(message: str):
+    producer = await get_kafka_producer()
+    await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, message.encode())
+    await producer.stop()

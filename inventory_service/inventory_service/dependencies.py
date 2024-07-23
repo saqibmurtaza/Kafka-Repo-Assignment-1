@@ -1,5 +1,6 @@
 from .mock_inv_service import MockInventoryService
 import supabase, os
+
 inventory_service_instance= MockInventoryService()
 
 def get_mock_inventory():

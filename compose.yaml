@@ -202,7 +202,7 @@ services:
     depends_on:
       - broker
     env_file:
-      - ./order_service/order_service/.env
+      - .env
     networks:
       - kong-net
 
@@ -216,6 +216,33 @@ services:
     networks:  
       - kong-net
     restart: on-failure
+  
+  inventory_service:
+    build:
+      context: ./inventory_service
+      dockerfile: Dockerfile.inv
+    volumes:
+      - ./inventory_service:/app
+    ports:
+      - "8011:8011"
+    depends_on:
+      - broker
+    env_file:
+      - .env
+    networks:
+      - kong-net
+  
+  kong_inventory_service:
+    image: kong:latest  
+    depends_on:  
+      - kong  
+    environment:  
+      KONG_SERVICE_NAME: inventory_service
+      KONG_SERVICE_URL: http://inventory_service:8011 
+    networks:  
+      - kong-net
+    restart: on-failure
+
 
   # postgres_db_fastapi_02:
   #   image: postgres:latest

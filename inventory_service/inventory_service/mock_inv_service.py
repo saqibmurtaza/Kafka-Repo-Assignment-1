@@ -33,5 +33,3 @@ class MockInventoryService:
     
     def stock_list(self):
         return self.inventory
-
-        

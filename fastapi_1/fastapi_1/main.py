@@ -26,7 +26,8 @@ async def read_root():
     return {"Project":"API-1 - Producer & CRUD Endpoints"}
 
 @app.post("/add_product", response_model=Product)
-async def add_product(product: Product, producer: AIOKafkaProducer = Depends(get_kafka_producer), 
+async def add_product(product: Product, 
+                      producer: AIOKafkaProducer = Depends(get_kafka_producer), 
                       topic: str = settings.TOPIC_PRODUCTS_CRUD) -> Product:
     product_proto = ProductProto(
         id=product.id,

@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from starlette.datastructures import Secret
 import logging
 
 # Configure logging
@@ -8,10 +7,12 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
-    TOPIC_ORDER_STATUS: str
+    TOPIC_INVENTORY_UPDATES: str
+    CONSUMER_GROUP_INVENTORY_MANAGER: str
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
+
 
     class Config:
         env_file = '../.env'
@@ -20,8 +21,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-logger.info(f"BOOTSTRAP_SERVER: {settings.BOOTSTRAP_SERVER}")
-logger.info(f"TOPIC_ORDER_STATUS: {settings.TOPIC_ORDER_STATUS}")
-logger.info(f"MOCK_SUPABASE: {settings.MOCK_SUPABASE}")
-logger.info(f"SUPABASE_URL: {settings.SUPABASE_URL}")
-logger.info(f"SUPABASE_KEY: {settings.SUPABASE_KEY}")
+logger.info(f"KAFKA_BOOTSTRAP_SERVERS UPLOAD SUCCESSFULLY")
+logger.info(f"TOPIC_INVENTORY_UPDATES: UPLOAD SUCCESSFULLY")
+logger.info(f"CONSUMER_GROUP_INVENTORY_MANAGER: UPLOAD SUCCESSFULLY")
