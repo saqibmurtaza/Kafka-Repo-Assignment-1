@@ -55,8 +55,8 @@ services:
     depends_on:
       kong-database:
         condition: service_healthy
-    env_file:
-      - ./kong.env  # Use the kong.env file
+    # env_file:
+    #   - ./kong.env  # Use the kong.env file
     environment:
       KONG_DATABASE: postgres
       KONG_PG_HOST: kong-db
@@ -73,10 +73,8 @@ services:
       - "8001:8001"
       - "8002:8002"  # Add this line for the Admin GUI
     volumes:
-      # - ./kong.yaml:/opt/kong/kong.yaml  # Mounting kong.yaml into Kong container
-      # - ./kong.yml:/opt/kong/kong.yml
       - kong-data:/var/lib/postgresql/data  # Mount Kong's PostgreSQL data directory to a volume
-      - kong-data:/var/lib/kong
+      - kong-data:/var/lib/kong # keep kong services/routes persistently saved if container removed
 
     # command: kong start -v -c /opt/kong/kong.yaml
     healthcheck:
@@ -100,17 +98,6 @@ services:
       - broker
     networks:
       - kong-net
-
-  kong_fastapi_01:  
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: fastapi-01  
-      KONG_SERVICE_URL: http://fastapi_01:8006  
-    networks:  
-      - kong-net
-    restart: on-failure
 
   # fastapi_02:
   #   build:
@@ -154,17 +141,6 @@ services:
     networks:
       - kong-net
 
-  kong_notification_service:  
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: notification_service  
-      KONG_SERVICE_URL: http://notification_service:8008 
-    networks:  
-      - kong-net
-    restart: on-failure
-
   users_service:
     build:
       context: ./users_service
@@ -179,17 +155,6 @@ services:
       - ./users_service/users_service/.env
     networks:
       - kong-net
-
-  kong_users_service:
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: users_service
-      KONG_SERVICE_URL: http://users_service:8009 
-    networks:  
-      - kong-net
-    restart: on-failure
 
   order_service:
     build:
@@ -206,17 +171,6 @@ services:
     networks:
       - kong-net
 
-  kong_order_service:
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: order_service
-      KONG_SERVICE_URL: http://order_service:8010 
-    networks:  
-      - kong-net
-    restart: on-failure
-  
   inventory_service:
     build:
       context: ./inventory_service
@@ -232,18 +186,6 @@ services:
     networks:
       - kong-net
   
-  kong_inventory_service:
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: inventory_service
-      KONG_SERVICE_URL: http://inventory_service:8011 
-    networks:  
-      - kong-net
-    restart: on-failure
-
-
   # postgres_db_fastapi_02:
   #   image: postgres:latest
   #   restart: always
@@ -294,16 +236,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
     
-  kong_broker:  
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: broker
-      KONG_SERVICE_URL: http://broker:9092
-    networks:  
-      - kong-net
-    restart: on-failure
 
   kafka_ui:
     image: provectuslabs/kafka-ui:latest
@@ -317,17 +249,6 @@ services:
       - broker
     networks:
       - kong-net
-
-  kong_kafka_ui:  
-    image: kong:latest  
-    depends_on:  
-      - kong  
-    environment:  
-      KONG_SERVICE_NAME: kafka_ui
-      KONG_SERVICE_URL: http://kafka_ui:8080
-    networks:  
-      - kong-net
-    restart: on-failure
 
 volumes:
   kong-data:
