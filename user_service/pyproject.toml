@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "users_service"
+name = "user-service"
 version = "0.1.0"
 description = ""
 authors = ["saqibmurtaza <saqibmurtazakhan@gmai.com>"]
@@ -18,8 +18,8 @@ supabase = "^2.5.1"
 pytest = "^8.2.2"
 pyjwt = "^2.8.0"
 dapr = "^1.13.0"
-
-
+pydantic-settings = "^2.3.4"
+jwt = "^1.3.1"
 
 [build-system]
 requires = ["poetry-core"]

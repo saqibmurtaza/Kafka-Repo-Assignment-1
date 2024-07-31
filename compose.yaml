@@ -1,5 +1,3 @@
-version: '2.1'
-
 networks:
   kong-net:
     name: kong-net
@@ -66,6 +64,7 @@ services:
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002  # Add this line for the Admin GUI
       # KONG_DECLARATIVE_CONFIG: "/opt/kong/kong.yaml"  # Mount point for kong.yaml
+    
     networks:
       - kong-net
     ports:
@@ -84,20 +83,20 @@ services:
       retries: 10
     restart: on-failure
 
-  fastapi_01:
-    build:
-      context: ./fastapi_1
-      dockerfile: Dockerfile.prod
-    volumes:
-      - ./fastapi_1:/app
-    ports:
-      - "8006:8006"
-    env_file:
-      - ${PWD}/.env
-    depends_on:
-      - broker
-    networks:
-      - kong-net
+  # fastapi_01:
+  #   build:
+  #     context: ./fastapi_1
+  #     dockerfile: Dockerfile.prod
+  #   volumes:
+  #     - ./fastapi_1:/app
+  #   ports:
+  #     - "8006:8006"
+  #   env_file:
+  #     - ${PWD}/.env
+  #   depends_on:
+  #     - broker
+  #   networks:
+  #     - kong-net
 
   # fastapi_02:
   #   build:
@@ -126,65 +125,65 @@ services:
   #     - kong-net
   #   restart: on-failure
 
-  notification_service:
-    build:
-      context: ./notification_service
-      dockerfile: Dockerfile.not
-    volumes:
-      - ./notification_service:/app
-    ports:
-      - "8008:8008"
-    depends_on:
-      - broker
-    env_file:
-      - ./notification_service/notification_service/.env
-    networks:
-      - kong-net
+  # notification_service:
+  #   build:
+  #     context: ./notification_service
+  #     dockerfile: Dockerfile.not
+  #   volumes:
+  #     - ./notification_service:/app
+  #   ports:
+  #     - "8008:8008"
+  #   depends_on:
+  #     - broker
+  #   env_file:
+  #     - ./notification_service/notification_service/.env
+  #   networks:
+  #     - kong-net
 
-  users_service:
+  user_service:
     build:
-      context: ./users_service
-      dockerfile: Dockerfile.use
+      context: ./user_service
+      dockerfile: Dockerfile.user
     volumes:
-      - ./users_service:/app
+      - ./user_service:/app
     ports:
       - "8009:8009"
     depends_on:
       - broker
     env_file:
-      - ./users_service/users_service/.env
-    networks:
-      - kong-net
-
-  order_service:
-    build:
-      context: ./order_service
-      dockerfile: Dockerfile.ord
-    volumes:
-      - ./order_service:/app
-    ports:
-      - "8010:8010"
-    depends_on:
-      - broker
-    env_file:
       - .env
     networks:
       - kong-net
 
-  inventory_service:
-    build:
-      context: ./inventory_service
-      dockerfile: Dockerfile.inv
-    volumes:
-      - ./inventory_service:/app
-    ports:
-      - "8011:8011"
-    depends_on:
-      - broker
-    env_file:
-      - .env
-    networks:
-      - kong-net
+  # order_service:
+  #   build:
+  #     context: ./order_service
+  #     dockerfile: Dockerfile.ord
+  #   volumes:
+  #     - ./order_service:/app
+  #   ports:
+  #     - "8010:8010"
+  #   depends_on:
+  #     - broker
+  #   env_file:
+  #     - .env
+  #   networks:
+  #     - kong-net
+
+  # inventory_service:
+  #   build:
+  #     context: ./inventory_service
+  #     dockerfile: Dockerfile.inv
+  #   volumes:
+  #     - ./inventory_service:/app
+  #   ports:
+  #     - "8011:8011"
+  #   depends_on:
+  #     - broker
+  #   env_file:
+  #     - .env
+  #   networks:
+  #     - kong-net
   
   # postgres_db_fastapi_02:
   #   image: postgres:latest

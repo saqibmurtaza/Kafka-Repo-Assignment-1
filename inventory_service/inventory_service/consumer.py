@@ -24,7 +24,7 @@ async def start_consumer(topic, bootstrap_server, consumer_group_id):
     try:
         async for message in consumer:
             logging.info(f'Message_Recieved : {message.value}')
-            # Process the message
+            
     except asyncio.CancelledError:
         logging.info('Consumer Stopped')
     finally:

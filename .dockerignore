@@ -2,4 +2,7 @@ node_modules
 *.log
 .git
 .vscode
+.venv
+users_service/.venv
+
 

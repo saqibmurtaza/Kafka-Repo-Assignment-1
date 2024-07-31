@@ -1,13 +1,13 @@
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
-from users_service import settings
+from .settings import settings
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
 async def get_kafka_producer():
-    producer = AIOKafkaProducer(bootstrap_servers=settings.BOOTSTRAP_SERVER)
+    producer = AIOKafkaProducer(bootstrap_servers= settings.BOOTSTRAP_SERVER)
     await producer.start()
    
     try:

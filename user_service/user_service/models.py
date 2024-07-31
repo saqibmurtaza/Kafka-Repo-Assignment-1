@@ -9,3 +9,15 @@ class User(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    
+class UserListResponse(BaseModel):
+    username: str
+    email: str
+
+class UserMessage(BaseModel):
+    action: str
+    user: User
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
