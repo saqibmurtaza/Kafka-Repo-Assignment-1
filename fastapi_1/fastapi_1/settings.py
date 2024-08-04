@@ -1,28 +1,24 @@
-import os
-import logging
+from pydantic_settings import BaseSettings
 from starlette.datastructures import Secret
-from starlette.config import Config
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# env_file_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
-env_file_path = './.env'
+class Settings(BaseSettings):
+    BOOTSTRAP_SERVER: str
+    TOPIC_PRODUCTS_CRUD: str
+    CONSUMER_GROUP_NOTIFYME_MANAGER: str
 
-# Check if the .env file exists
-if os.path.exists(env_file_path):
-    logger.info('Loading environment variables from %s', env_file_path)
-    config = Config(env_file=env_file_path)
-else:
-    
-    logger.warning('No .env file found at %s', env_file_path)
-    config = Config(environ=os.environ)  # Fall back to environment variables if the file is not found
+    class Config:
+        env_file = '../.env'
+        env_file_encoding = 'utf-8'
+        extra = 'allow'
 
-DATABASE_URL=config("DATABASE_URL", Secret)
-# KAFKA
-BOOTSTRAP_SERVER = config('BOOTSTRAP_SERVER', cast=str, default='default_bootstrap_server')
-TOPIC_PRODUCTS_CRUD = config('TOPIC_PRODUCTS_CRUD', cast=str, default='default_topic_products_crud')
+settings = Settings()
 
-logger.info(f"BOOTSTRAP_SERVER: {BOOTSTRAP_SERVER}")
-logger.info(f"TOPIC_PRODUCTS_CRUD: {TOPIC_PRODUCTS_CRUD}")
+logger.info(f"BOOTSTRAP_SERVER: SUCCESSFULLY RETRIEVED")
+logger.info(f"TOPIC_PRODUCTS_CRUD: SUCCESSFULLY RETRIEVED")
+logger.info(f"DATABASE_URL: SUCCESSFULLY RETRIEVED")
+

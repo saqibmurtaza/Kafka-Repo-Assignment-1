@@ -19,7 +19,7 @@ async def lifespan(app:FastAPI):
     logger.info('lifespan function ...')
     consumer_task= asyncio.create_task(
         start_consumer(
-            topic=settings.TOPIC_ORDER_STATUS,
+            topic=settings.TOPIC_USER_EVENTS,
             bootstrap_server=settings.BOOTSTRAP_SERVER,
             consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER))
 
@@ -51,7 +51,7 @@ class NotificationPayload(BaseModel):
     user_phone: str
 
 async def send_notification(payload: NotificationPayload, producer: AIOKafkaProducer,
-                            topic: str = settings.TOPIC_ORDER_STATUS):
+                            topic: str = settings.TOPIC_USER_EVENTS):
     await producer.start()
     try:
         payload_proto = NotificationPayloadProto(

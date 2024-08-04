@@ -1,8 +1,7 @@
 import logging
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
-from fastapi_1 import settings
-
+from .settings import settings
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 

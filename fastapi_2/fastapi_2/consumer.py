@@ -4,7 +4,6 @@ import logging, asyncio
 from .database import engine, Session
 from .model import Product
 from fastapi_2.product_pb2 import ProductEvent
-import os, sys, requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,6 +88,8 @@ async def start_consumer(topic, bootstrap_server, consumer_group_id):
                     else:
                         logging.warning(f"Product with id: {product_id} not found for update")
 
+    except asyncio.CancelledError:
+        logger.info("Consumer task was cancelled")
     except Exception as e:
         logger.error(f"Error processing message: {message.value}, Error: {str(e)}")
     finally:

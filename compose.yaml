@@ -83,47 +83,35 @@ services:
       retries: 10
     restart: on-failure
 
-  # fastapi_01:
-  #   build:
-  #     context: ./fastapi_1
-  #     dockerfile: Dockerfile.prod
-  #   volumes:
-  #     - ./fastapi_1:/app
-  #   ports:
-  #     - "8006:8006"
-  #   env_file:
-  #     - ${PWD}/.env
-  #   depends_on:
-  #     - broker
-  #   networks:
-  #     - kong-net
+  fastapi_01:
+    build:
+      context: ./fastapi_1
+      dockerfile: Dockerfile.prod
+    volumes:
+      - ./fastapi_1:/app
+    ports:
+      - "8006:8006"
+    env_file:
+      - .env
+    depends_on:
+      - broker
+    networks:
+      - kong-net
 
-  # fastapi_02:
-  #   build:
-  #     context: ./fastapi_2
-  #     dockerfile: Dockerfile.cons
-  #   volumes:
-  #     - ./fastapi_2:/app
-  #   ports:
-  #     - "8007:8007"
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - postgres_db_fastapi_02
-  #     - broker
-  #   networks:
-  #     - kong-net
-
-  # kong_fastapi_02:  
-  #   image: kong:latest  
-  #   depends_on:  
-  #     - kong  
-  #   environment:  
-  #     KONG_SERVICE_NAME: fastapi-02  
-  #     KONG_SERVICE_URL: http://fastapi_02:8007  
-  #   networks:  
-  #     - kong-net
-  #   restart: on-failure
+  fastapi_02:
+    build:
+      context: ./fastapi_2
+      dockerfile: Dockerfile.cons
+    volumes:
+      - ./fastapi_2:/app
+    ports:
+      - "8012:8012"
+    env_file:
+      - .env
+    depends_on:
+      - broker
+    networks:
+      - kong-net
 
   # notification_service:
   #   build:
@@ -155,62 +143,36 @@ services:
     networks:
       - kong-net
 
-  # order_service:
-  #   build:
-  #     context: ./order_service
-  #     dockerfile: Dockerfile.ord
-  #   volumes:
-  #     - ./order_service:/app
-  #   ports:
-  #     - "8010:8010"
-  #   depends_on:
-  #     - broker
-  #   env_file:
-  #     - .env
-  #   networks:
-  #     - kong-net
+  order_service:
+    build:
+      context: ./order_service
+      dockerfile: Dockerfile.ord
+    volumes:
+      - ./order_service:/app
+    ports:
+      - "8010:8010"
+    depends_on:
+      - broker
+    env_file:
+      - .env
+    networks:
+      - kong-net
 
-  # inventory_service:
-  #   build:
-  #     context: ./inventory_service
-  #     dockerfile: Dockerfile.inv
-  #   volumes:
-  #     - ./inventory_service:/app
-  #   ports:
-  #     - "8011:8011"
-  #   depends_on:
-  #     - broker
-  #   env_file:
-  #     - .env
-  #   networks:
-  #     - kong-net
+  inventory_service:
+    build:
+      context: ./inventory_service
+      dockerfile: Dockerfile.inv
+    volumes:
+      - ./inventory_service:/app
+    ports:
+      - "8011:8011"
+    depends_on:
+      - broker
+    env_file:
+      - .env
+    networks:
+      - kong-net
   
-  # postgres_db_fastapi_02:
-  #   image: postgres:latest
-  #   restart: always
-  #   container_name: neon_postgresql_fastapi_02
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #     POSTGRES_DB: ${POSTGRES_DB}
-  #   volumes:
-  #     - postgres_data_fastapi_02:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-  #   networks:
-  #     - kong-net
-
-  # kong_postgres_db_fastapi_02:  
-  #   image: kong:latest  
-  #   depends_on:  
-  #     - kong  
-  #   environment:  
-  #     KONG_SERVICE_NAME: postgres_db_fastapi_02
-  #     KONG_SERVICE_URL: http://postgres_db_fastapi_02:5432  
-  #   networks:  
-  #     - kong-net
-  #   restart: on-failure
-
   broker:
     image: apache/kafka:3.7.0
     hostname: broker
@@ -252,4 +214,7 @@ services:
 volumes:
   kong-data:
     driver: local
+  postgres_data_fastapi_02:
+    driver: local
+
 

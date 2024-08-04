@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def start_consumer():
     consumer = AIOKafkaConsumer(
-        settings.TOPIC_ORDER_STATUS,
+        settings.TOPIC_USER_EVENTS,
         bootstrap_servers=settings.BOOTSTRAP_SERVER,
         group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER
     )

@@ -1,23 +1,39 @@
-from fastapi import FastAPI, Depends, Body
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_1 import settings
-from .models import Product
+from contextlib import asynccontextmanager
+from .consumer import start_consumer
+from .settings import settings
+from .models import Product, DeleteProductsRequest, ProductUpdate
 from .producer import get_kafka_producer, AIOKafkaProducer
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
 from fastapi_1.product_pb2 import Product as ProductProto, ProductEvent
-import sys, os, logging
+import logging, asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    logger.info('lifespan in process ...')
+    consumer_task= asyncio.create_task(
+        start_consumer(
+            topic=settings.TOPIC_PRODUCTS_CRUD,
+            bootstrap_server=settings.BOOTSTRAP_SERVER,
+            consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER))
+    try:
+        yield
+    finally:
+        consumer_task.cancel()
+        await consumer_task
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title= 'ShopSphere _ Producer & API Endpoints',
     servers=[
         {
-        "url": "http://localhost:8000",
-        "description": "Server:Uvicorn, port:8000"
+        "url": "http://localhost:8006",
+        "description": "Server:Uvicorn, port:8006"
         }]
     )
 
@@ -25,10 +41,11 @@ app = FastAPI(
 async def read_root():
     return {"Project":"API-1 - Producer & CRUD Endpoints"}
 
-@app.post("/add_product", response_model=Product)
+@app.post("/product", response_model=Product)
 async def add_product(product: Product, 
                       producer: AIOKafkaProducer = Depends(get_kafka_producer), 
-                      topic: str = settings.TOPIC_PRODUCTS_CRUD) -> Product:
+                      topic: str = settings.TOPIC_PRODUCTS_CRUD
+                      ) -> Product:
     product_proto = ProductProto(
         id=product.id,
         product_name=product.product_name,
@@ -38,11 +55,10 @@ async def add_product(product: Product,
     product_event_proto = ProductEvent(operation="add", data=product_proto)
     product_event_bytes = product_event_proto.SerializeToString()
     await producer.send_and_wait(topic, product_event_bytes)
-    print(f'My_Product: {product}')
-    print(f'My_Product_Bytes: {product_event_bytes}')
+    logging.info(f'My_Product: {product}')
     return product
 
-@app.get("/read_product/{id}")
+@app.get("/product/{id}")
 async def read_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_producer),
                        topic: str = settings.TOPIC_PRODUCTS_CRUD):
     # Create a Protobuf message for the product event
@@ -53,7 +69,7 @@ async def read_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_p
     await producer.send_and_wait(topic, product_event_bytes)
     return {"message": "product read request sent"}
 
-@app.delete("/delete_product/{id}")
+@app.delete("/product/{id}")
 async def delete_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_producer),
                          topic: str = settings.TOPIC_PRODUCTS_CRUD):
     # Create a Protobuf message for the product event
@@ -64,10 +80,9 @@ async def delete_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka
     await producer.send_and_wait(topic, product_event_bytes)
     return {"message": "product delete request sent"}
 
-class DeleteProductsRequest(BaseModel):
-    ids: List[int]
 
-@app.delete("/delete_multiple_products")
+
+@app.delete("/products/list")
 async def delete_products(request: DeleteProductsRequest, producer: AIOKafkaProducer = Depends(get_kafka_producer),
                           topic: str = settings.TOPIC_PRODUCTS_CRUD):
     for id in request.ids:
@@ -76,12 +91,6 @@ async def delete_products(request: DeleteProductsRequest, producer: AIOKafkaProd
         await producer.send_and_wait(topic, product_event_bytes)
         logger.info(f"Sent delete request for product id: {id}")
     return {"message": "delete requests sent for products"}
-
-
-class ProductUpdate(BaseModel):
-    product_name: Optional[str] = None
-    description: Optional[str] = None
-    price: Optional[float] = None
 
 @app.put("/update_product/{id}")
 async def update_product_endpoint(
