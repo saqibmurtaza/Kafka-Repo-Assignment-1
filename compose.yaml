@@ -95,6 +95,10 @@ services:
       - .env
     depends_on:
       - broker
+    labels:
+      - "dapr.io/enabled=true"
+      - "dapr.io/app-id=fastapi-01"
+      - "dapr.io/app-port=8006"
     networks:
       - kong-net
 
@@ -110,6 +114,10 @@ services:
       - .env
     depends_on:
       - broker
+    labels:
+      - "dapr.io/enabled=true"
+      - "dapr.io/app-id=fastapi-02"
+      - "dapr.io/app-port=8012"
     networks:
       - kong-net
 
