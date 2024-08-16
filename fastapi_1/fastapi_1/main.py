@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .consumer import start_consumer
+from typing import List
 from .settings import settings
-from .models import Product, DeleteProductsRequest, ProductUpdate
+from .models import Product, DeleteProductsRequest, ProductUpdate, ProductCreate
 from .producer import get_kafka_producer, AIOKafkaProducer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_1.product_pb2 import Product as ProductProto, ProductEvent
@@ -12,23 +12,8 @@ import logging, asyncio
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app:FastAPI):
-    logger.info('lifespan in process ...')
-    consumer_task= asyncio.create_task(
-        start_consumer(
-            topic=settings.TOPIC_PRODUCTS_CRUD,
-            bootstrap_server=settings.BOOTSTRAP_SERVER,
-            consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER))
-    try:
-        yield
-    finally:
-        consumer_task.cancel()
-        await consumer_task
-
-
 app = FastAPI(
-    lifespan=lifespan,
+    # lifespan=lifespan,
     title= 'ShopSphere _ Producer & API Endpoints',
     servers=[
         {
@@ -41,13 +26,23 @@ app = FastAPI(
 async def read_root():
     return {"Project":"API-1 - Producer & CRUD Endpoints"}
 
+
 @app.post("/product", response_model=Product)
-async def add_product(product: Product, 
-                      producer: AIOKafkaProducer = Depends(get_kafka_producer), 
-                      topic: str = settings.TOPIC_PRODUCTS_CRUD
-                      ) -> Product:
+async def add_product(
+                product: ProductCreate, 
+                producer: AIOKafkaProducer = Depends(get_kafka_producer), 
+                topic: str = settings.TOPIC_PRODUCT_CRUD
+                ) -> Product:
+
+# Create a Product instance without an ID
+    
+    product = Product(
+        product_name=product.product_name,
+        description=product.description,
+        price=product.price
+    )
     product_proto = ProductProto(
-        id=product.id,
+        id=0,
         product_name=product.product_name,
         description=product.description,
         price=product.price
@@ -59,8 +54,11 @@ async def add_product(product: Product,
     return product
 
 @app.get("/product/{id}")
-async def read_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                       topic: str = settings.TOPIC_PRODUCTS_CRUD):
+async def read_product(
+                id: int, 
+                producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                topic: str = settings.TOPIC_PRODUCT_CRUD
+                ):
     # Create a Protobuf message for the product event
     product_event_proto = ProductEvent(operation="read", data=ProductProto(id=id))
     # Serialize the Protobuf message to bytes
@@ -70,8 +68,11 @@ async def read_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_p
     return {"message": "product read request sent"}
 
 @app.delete("/product/{id}")
-async def delete_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                         topic: str = settings.TOPIC_PRODUCTS_CRUD):
+async def delete_product(
+                id: int, 
+                producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                topic: str = settings.TOPIC_PRODUCT_CRUD
+                ):
     # Create a Protobuf message for the product event
     product_event_proto = ProductEvent(operation="delete", data=ProductProto(id=id))
     # Serialize the Protobuf message to bytes
@@ -80,11 +81,12 @@ async def delete_product(id: int, producer: AIOKafkaProducer = Depends(get_kafka
     await producer.send_and_wait(topic, product_event_bytes)
     return {"message": "product delete request sent"}
 
-
-
-@app.delete("/products/list")
-async def delete_products(request: DeleteProductsRequest, producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                          topic: str = settings.TOPIC_PRODUCTS_CRUD):
+@app.delete("/product/list")
+async def delete_products(
+                request: DeleteProductsRequest, 
+                producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                topic: str = settings.TOPIC_PRODUCT_CRUD
+                ):
     for id in request.ids:
         product_event_proto = ProductEvent(operation="delete", data=ProductProto(id=id))
         product_event_bytes = product_event_proto.SerializeToString()
@@ -92,12 +94,13 @@ async def delete_products(request: DeleteProductsRequest, producer: AIOKafkaProd
         logger.info(f"Sent delete request for product id: {id}")
     return {"message": "delete requests sent for products"}
 
-@app.put("/update_product/{id}")
-async def update_product_endpoint(
+@app.put("/product/{id}")
+async def update_product(
         id: int,
         updates: ProductUpdate,
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
-        topic: str = settings.TOPIC_PRODUCTS_CRUD):
+        topic: str = settings.TOPIC_PRODUCT_CRUD
+        ):
     # Create a Protobuf message for the product with updated fields
     product_proto = ProductProto(
         id=id,
@@ -112,6 +115,21 @@ async def update_product_endpoint(
     # Send the serialized bytes
     await producer.send_and_wait(topic, product_event_bytes)
     return {"message": "product update request sent"}
+
+@app.get("/product")
+async def list_of_products(
+                producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                topic: str = settings.TOPIC_PRODUCT_CRUD
+                ):
+    # Create a Protobuf message for requesting all products
+    product_event_proto = ProductEvent(operation="list", data=ProductProto())
+    # Serialize the Protobuf message to bytes
+    product_event_bytes = product_event_proto.SerializeToString()
+    # Send the serialized bytes
+    await producer.send_and_wait(topic, product_event_bytes)
+    return {"message": "product list request sent"}
+
+
 
 origins = [
     "http://localhost:8000",

@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
-    TOPIC_PRODUCTS_CRUD: str
-    CONSUMER_GROUP_NOTIFYME_MANAGER: str
+    TOPIC_PRODUCT_CRUD: str
 
     class Config:
         env_file = '../.env'

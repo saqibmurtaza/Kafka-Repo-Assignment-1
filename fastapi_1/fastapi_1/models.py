@@ -8,6 +8,12 @@ class Product(SQLModel, table=True):
     description: str
     price : float
 
+class ProductCreate(BaseModel):
+    product_name: str
+    description: str
+    price: float
+
+
 class DeleteProductsRequest(BaseModel):
     ids: List[int]
 

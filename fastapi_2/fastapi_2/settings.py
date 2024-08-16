@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
-    TOPIC_PRODUCTS_CRUD: str
-    # CONSUMER_GROUP_PRODUCT_MANAGER: str
-    CONSUMER_GROUP_NOTIFYME_MANAGER: str
+    TOPIC_PRODUCT_CRUD: str
+    CONSUMER_GROUP_PRODUCT_MANAGER: str
+    # CONSUMER_GROUP_NOTIFYME_MANAGER: str
     SUPABASE_URL: str
     SUPABASE_DB_URL: str
     SUPABASE_KEY: str
