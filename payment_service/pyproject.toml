@@ -1,11 +1,12 @@
 [tool.poetry]
-name = "user-service"
+name = "payment-service"
 version = "0.1.0"
 description = ""
 authors = ["saqibmurtaza <saqibmurtazakhan@gmai.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
+
 python = "^3.12"
 fastapi = "^0.111.0"
 sqlmodel = "^0.0.19"
@@ -17,8 +18,10 @@ protobuf = "^5.27.1"
 supabase = "^2.5.1"
 pytest = "^8.2.2"
 pyjwt = "^2.8.0"
+requests = "^2.32.3"
 dapr = "^1.13.0"
 pydantic-settings = "^2.3.4"
+
 
 [build-system]
 requires = ["poetry-core"]

@@ -24,7 +24,7 @@ async def start_consumer(topics, bootstrap_server, consumer_group_id):
             await asyncio.sleep(5)
     
     async for message in consumer:
-        logger.info(f"Received message: {message.value}")
+        logger.info("MESSAGE_RECIEVED_BY_CONSUMER_FUCNTION : STATUS:OKAY")
 
         if message.topic == settings.TOPIC_USER_EVENTS:
             try:
@@ -35,5 +35,5 @@ async def start_consumer(topics, bootstrap_server, consumer_group_id):
                 # Convert Pydantic model to dictionary
                 user_message_dict = user_message.model_dump()
             except Exception as e:
-                logger.error(f"Error processing user message: {e}")
+                logger.error(f"USER_MESSAGE_CONVERSION_PROCESS_ERROR: {e}")
 

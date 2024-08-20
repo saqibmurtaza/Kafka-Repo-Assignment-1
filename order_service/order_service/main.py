@@ -1,15 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List
 from aiokafka import AIOKafkaProducer
+from .notification import send_notification
 from .producer import get_kafka_producer
 from .consumer import start_consumer
 from .dependencies import get_mock_order_service, get_real_order_service
-from .model import Order
-from .order_pb2 import NotificationPayloadProto
+from .model import Order, NotificationPayload, OrderCreated
 from .settings import settings
-import os, logging, asyncio
-from contextlib import asynccontextmanager
+import logging, asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,41 +44,19 @@ def get_order_service():
         return get_mock_order_service()
     return get_real_order_service()
 
-class NotificationPayload(BaseModel):
-    order_id: int
-    status: str
-    user_email: str
-    user_phone: str
-
-async def send_notification(payload: NotificationPayload, producer: AIOKafkaProducer,
-                            topic: str = settings.TOPIC_USER_EVENTS):
-    await producer.start()
-    try:
-        payload_proto = NotificationPayloadProto(
-            order_id=payload.order_id,
-            status=payload.status,
-            user_email=payload.user_email,
-            user_phone=payload.user_phone
-        )
-        message = payload_proto.SerializeToString()
-        await producer.send_and_wait(topic, message)
-        logger.info(f"Notification sent for order_id {payload.order_id}")
-    finally:
-        await producer.stop()
-
 @app.get("/")
 def read_root():
     return {"message": "Order Service for Saqib's online mart"}
 
 @app.post("/orders", response_model=Order)
 async def create_order(
-    order: Order,
+    order: OrderCreated,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     service = Depends(get_order_service)
 ):
     order_data = order.model_dump()  # Convert the order instance into a dictionary
     created_order = service.create_order(order_data)
-    logging.info(f'Created_Order : {created_order}')
+    logging.info(f'ORDER_CREATED : {created_order}')
 
     notification_payload = NotificationPayload(
         order_id=created_order.id,
@@ -93,14 +71,13 @@ async def create_order(
 @app.put("/orders/{order_id}", response_model=Order)
 async def update_order(
     order_id: int,
-    order: Order,
+    order: OrderCreated,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     service = Depends(get_order_service)
 ):
     update_data = {k: v for k, v in order.model_dump().items() if k != 'id'}
     updated_order = service.update_order(order_id, update_data)
-    logging.info(f'Updated_Order : {updated_order}')
-    logging.info(f'Updating order with ID {order_id} using data: {update_data}')
+    logging.info(f'ORDER_UPDATED : {updated_order}')
 
     if updated_order:
         notification_payload = NotificationPayload(
@@ -129,10 +106,13 @@ async def delete_order(
             user_phone="+923171938567"
         )
         await send_notification(notification_payload, producer)
-        return {"message": "Order deleted successfully"}
+        logging.info(f'ORDER_DELETED : {success}')
+        return {"message": "ORDER_DELETED_SUCCESSFULLY"}
     else:
         raise HTTPException(status_code=404, detail="Order not found")
 
 @app.get("/orders", response_model=List[Order])
 async def get_orders_list(service = Depends(get_order_service)):
+    order_list = service.orders_list()
+    logging.info(f'ORDER_LIST : {order_list}')
     return service.orders_list()

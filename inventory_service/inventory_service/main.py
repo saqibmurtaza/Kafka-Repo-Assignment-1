@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from contextlib import asynccontextmanager
 from .consumer import start_consumer
-from .model import Inventory, InventoryResponse
+from .model import Inventory, InventoryResponse, InventoryCreate
 from .dependencies import get_mock_inventory, get_real_inventory
 from .producer import get_kafka_producer
 from .mock_inv_service import MockInventoryService
@@ -52,7 +52,7 @@ async def read_root():
     return {"message" : "Inventory Service with Kafka"}
 
 @app.post("/inventory", response_model=InventoryResponse)
-async def create_inventory(inventory:Inventory,
+async def create_inventory(inventory:InventoryCreate,
                 producer: AIOKafkaProducer =Depends(get_kafka_producer),
                 service: MockInventoryService=Depends(get_inventory_service)):
     
@@ -62,7 +62,7 @@ async def create_inventory(inventory:Inventory,
     # Serialize the dictionary to a JSON string before sending
     response_json= json.dumps(response).encode('utf-8')
     await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, response_json)
-    logging.info(f'Stock_updated :{created_inventory}')
+    logging.info(f'STOCK-CREATED :{created_inventory}')
     return created_inventory
 
 @app.get("/inventory/{item_id}", response_model=InventoryResponse)
@@ -70,7 +70,7 @@ async def track_inventory(item_id:int,
                 producer: AIOKafkaProducer=Depends(get_kafka_producer), 
                 service: MockInventoryService=Depends(get_inventory_service)):
     tracked_inventory= service.track_inventory(item_id)
-    logging.info(f'Tracked_inventory_item : {tracked_inventory}')
+    logging.info(f'STOCK_ITEM_TRACKED : {tracked_inventory}')
     
     if tracked_inventory:
         tracked_inv_json= json.dumps(tracked_inventory).encode('utf-8')
@@ -80,14 +80,13 @@ async def track_inventory(item_id:int,
 
 @app.put("/inventory/{item_id}", response_model=InventoryResponse)
 async def update_inventory(item_id:int, 
-                update_data:Inventory,
+                update_data:InventoryCreate,
                 producer: AIOKafkaProducer=Depends(get_kafka_producer), 
                 service: MockInventoryService=Depends(get_inventory_service)):
     
-    # response= update_data.model_dump()
     update_data = {k: v for k, v in update_data.model_dump().items() if k != 'id'}
     updated_stock= service.update_inventory(item_id, update_data)
-    logging.info(f'Updated_stock : {updated_stock}')
+    logging.info(f'STOCK_UPDATED : {updated_stock}')
     
     if updated_stock:
         updated_stock_json= json.dumps(update_data).encode('utf-8')
@@ -101,17 +100,17 @@ async def delete_inventory(item_id:int,
                 service: MockInventoryService=Depends(get_inventory_service)):
     
     deleted_stock= service.delete_inventory(item_id)
-    logging.info(f'Deleted_Stock : {deleted_stock}')
+    logging.info(f'STOCK_TO_BE_DELETED : {deleted_stock}')
     if deleted_stock:
         deleted_stock_json= json.dumps(deleted_stock).encode('utf-8')
         await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, deleted_stock_json)
         return deleted_stock
-    raise HTTPException(status_code=404, detail='item not found')
+    raise HTTPException(status_code=404, detail='ITEM_NOT_FOUND')
 
 @app.get("/inventory", response_model=list[InventoryResponse])
 async def get_stock_list(service: MockInventoryService=Depends(get_inventory_service)):
     inventory_list= service.stock_list()
-    logging.info(f'Stock_List : {inventory_list}')
+    logging.info(f'STOCK_LIST : {inventory_list}')
     return inventory_list
 
 origins = [

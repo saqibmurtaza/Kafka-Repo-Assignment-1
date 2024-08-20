@@ -1,6 +1,3 @@
-#############################
-#Dapr Integration
-###############################
 FROM python:3.12
 
 LABEL maintainer="saqibmurtazakhan@gmail.com"
@@ -24,14 +21,9 @@ RUN poetry install --no-root
 
 COPY fastapi_2 /app/fastapi_2
 
-# Install Dapr CLI
-RUN wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash
-
 # Ensure the protos directory is in the PYTHONPATH
 ENV PYTHONPATH="/app/protos_file:${PYTHONPATH}"
 
-EXPOSE 8012
+EXPOSE 8007
 
-CMD ["poetry", "run", "uvicorn", "fastapi_2.main:app", "--host", "0.0.0.0", "--port", "8012", "--reload"]
-
-
+CMD ["poetry", "run", "uvicorn", "fastapi_2.main:app", "--host", "0.0.0.0", "--port", "8007", "--reload"]

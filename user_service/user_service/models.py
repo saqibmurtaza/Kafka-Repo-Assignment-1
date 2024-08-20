@@ -7,6 +7,12 @@ class User(BaseModel):
     email: str
     password: str
 
+class UserRegistration(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
 class Token(BaseModel):
     access_token: str
     

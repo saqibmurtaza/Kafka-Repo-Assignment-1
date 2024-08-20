@@ -125,8 +125,8 @@ app= FastAPI(
     title='SaqibShopSphere _ Consumer & DB operations',
     servers=[
         {
-            "url":"http://localhost:8012",
-            "description":"Server:Uvicorn, port:8012"
+            "url":"http://localhost:8007",
+            "description":"Server:Uvicorn, port:8007"
         }
     ]
 )

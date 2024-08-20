@@ -2,7 +2,7 @@ node_modules
 *.log
 .git
 .vscode
-.venv
+fastapi_1/.venv/
 users_service/.venv
 
 

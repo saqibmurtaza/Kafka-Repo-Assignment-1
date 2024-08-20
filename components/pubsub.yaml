@@ -1,3 +1,4 @@
+
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
@@ -7,8 +8,10 @@ spec:
   version: v1
   metadata:
   - name: brokers
-    value: "broker:19092"
+    value: "broker:9092"
   - name: consumerGroup
     value: "my-group"
   - name: authRequired
     value: "false"
+  - name: initTimeout
+    value: "10s"  # Increase the timeout

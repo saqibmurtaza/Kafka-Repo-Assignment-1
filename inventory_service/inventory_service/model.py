@@ -6,7 +6,13 @@ class Inventory(BaseModel):
     item: str
     stock_in_hand: int 
     unit_price: float
-    
+
+class InventoryCreate(BaseModel):
+    item: str
+    stock_in_hand: int 
+    unit_price: float
+
+
     @property
     def stock_value(self) -> float:
         return self.stock_in_hand * self.unit_price

@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from .models import LoginRequest
-import logging, jwt, sys, os
-
-PACKAGE_ROOT = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, PACKAGE_ROOT)
-
 from .models import User, Token
+import logging, sys, os, jwt
+
+# PACKAGE_ROOT = os.path.dirname(os.path.realpath(__file__))
+# sys.path.insert(0, PACKAGE_ROOT)
+
+
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
@@ -23,10 +24,10 @@ class MockSupabaseAuth():
     def sign_up(self, user_data):
         for my_user in self.users:
             if my_user["email"] == user_data["email"]:
-                return {"error": "User already exists", "status": "failed"}
+                return {"error": "User already exists"}
         user_data["id"] = len(self.users) + 1
         self.users.append(user_data)
-        return {"user": User(**user_data), "status": "success"}
+        return {"user": User(**user_data)}
     
     def login(self, login_request: LoginRequest):
         email = login_request.email
@@ -34,7 +35,7 @@ class MockSupabaseAuth():
         
         for my_user in self.users:
             if my_user["email"] == email and my_user["password"] == password:
-                access_token = generate_fake_token(my_user["id"], my_user["email"], expires_in_minutes=60)
+                access_token = generate_fake_token(my_user["id"], my_user["email"], expires_in_hours=1)
                 logging.info(f'Generated_Token : {access_token}')
                 decoded = jwt.decode(access_token, "My_Secret_Key", algorithms=["HS256"])
                 logging.info(f'TOKEN-DECODED : {decoded}')
@@ -62,19 +63,12 @@ class MockSupabaseAuth():
 
 
 
-    def print_users(self):
-        print("Current Users:")
-        for user in self.users:
-            print(user)
-
-
-
 JWT_SECRET = "My_Secret_Key"  
-def generate_fake_token(user_id, email, expires_in_minutes):  
+def generate_fake_token(user_id, email, expires_in_hours):  
     payload = {  
         "user_id": user_id,  
         "email": email,  
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_in_minutes),  
+        "exp": datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),  
         "iss": "My_Secret_Key"  
 
     }  

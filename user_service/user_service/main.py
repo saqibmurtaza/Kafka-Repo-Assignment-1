@@ -6,7 +6,7 @@ from .dependencies import get_mock_supabase_client, get_supabase_cleint
 from .consumer import start_consumer
 from .mock_supabase import MockSupabaseClient
 from .producer import get_kafka_producer
-from .models import User, UserListResponse, LoginRequest
+from .models import User, UserRegistration,UserListResponse, LoginRequest, UserMessage
 from .settings import settings
 from .notifications_logic import send_notification, NotificationPayload, notify_order_status
 from aiokafka import AIOKafkaProducer
@@ -53,28 +53,24 @@ def get_client():
     else:
         return get_supabase_cleint
 
-class UserMessage(BaseModel):
-    action: str
-    user: User
-
-@app.get("/user")
+@app.get("/")
 def read_root():
     return {"message": "User_Service"}
 
-@app.post("/user/registration", response_model=User)
+@app.post("/user/signup", response_model=User)
 async def register_user(
-        user: User,
+        user: UserRegistration,
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
         client: MockSupabaseClient = Depends(get_client)):
     user_data = {"username": user.username, "email": user.email, "password": user.password}
     for existing_user in client.users:
         if existing_user["email"] == user.email:
-            raise HTTPException(status_code=400, detail="Email already in use")
+            raise HTTPException(status_code=400, detail="EMAIL_ALREADY_IN_USE")
+    
     response = client.auth.sign_up(user_data)
-    client.auth.print_users()
-    #update id in user from response from auth.signup
-    user.id = response['user'].id
-    user_message = UserMessage(action="register", user=user)
+    registered_user= response['user']
+    user_message = UserMessage(action="register", user=registered_user)
+    
     await send_notification(producer, 
                             settings.TOPIC_USER_EVENTS, 
                             user_message)
@@ -83,11 +79,12 @@ async def register_user(
     notification_payload = NotificationPayload(
         user_email=user.email,
         status="registered",
-        order_id=user.id
+        order_id=registered_user.id,
+        action="registration"
     )
     await notify_order_status(notification_payload)
-    
-    return user
+    logging.info(f'USER_REGISTERED : {registered_user}')
+    return registered_user
 
 @app.post("/user/login")
 async def login(request: LoginRequest,
@@ -107,49 +104,18 @@ async def login(request: LoginRequest,
     notification_payload = NotificationPayload(
         user_email=user.email,
         status="logged_in",
-        order_id=user.id
+        order_id=user.id,
+        action="login"
     )
     await notify_order_status(notification_payload)
     
     return {"user": user, "token": token}
 
-# @app.get("/user/profile")
-# async def get_user_profile(token: str, 
-#                            producer: AIOKafkaProducer = Depends(get_kafka_producer),
-#                            client: MockSupabaseClient = Depends(get_client)):
-#     response = client.auth.user_profile(token)
-#     if response.get("status") == "failed":
-#         return {"error": response["error"], "status": "failed"}
-        
-#     user = response["user"]
-#     if not user:
-#         return {"error": "User profile not found", "status": "failed"}
-
-#     user_message = UserMessage(action="get_user_profile", user=user)
-#     await send_notification(producer, 
-#                             settings.TOPIC_USER_EVENTS, 
-#                             user_message)
-    
-#     # Send notification
-#     notification_payload = NotificationPayload(
-#         user_email=user.email,
-#         status="profile_viewed",
-#         order_id=user.id
-#     )
-#     await notify_order_status(notification_payload)
-    
-#     return response
 @app.get("/user/profile")
 async def get_user_profile(
-    authorization: Optional[str] = Header(None),
-    producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    client: MockSupabaseClient = Depends(get_client)
-):
-    if authorization is None or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authorization header missing or invalid")
-    
-    token = authorization.split(" ")[1]
-    
+        token: str, 
+        producer: AIOKafkaProducer = Depends(get_kafka_producer),
+        client: MockSupabaseClient = Depends(get_client)):
     response = client.auth.user_profile(token)
     if response.get("status") == "failed":
         return {"error": response["error"], "status": "failed"}
@@ -167,14 +133,14 @@ async def get_user_profile(
     notification_payload = NotificationPayload(
         user_email=user.email,
         status="profile_viewed",
-        order_id=user.id
+        order_id=user.id,
+        action="get_profile"
     )
     await notify_order_status(notification_payload)
     
     return response
 
-
-@app.get("/user/list", response_model=list[UserListResponse])
+@app.get("/user", response_model=list[UserListResponse])
 def get_users_list(client: MockSupabaseClient = Depends(get_client)):
     users_list = client.users
     filtered_users = [{"username": user["username"], "email": user["email"]} for user in users_list]
@@ -203,3 +169,5 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+

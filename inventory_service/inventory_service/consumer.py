@@ -23,7 +23,7 @@ async def start_consumer(topic, bootstrap_server, consumer_group_id):
             await asyncio.sleep(5)
     try:
         async for message in consumer:
-            logging.info(f'Message_Recieved : {message.value}')
+            logging.info("CONSUMER_RECIEVED_MESSAGE:STATUS:OKAY")
             
     except asyncio.CancelledError:
         logging.info('Consumer Stopped')
