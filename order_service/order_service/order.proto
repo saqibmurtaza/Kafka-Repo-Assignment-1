@@ -16,4 +16,10 @@ message OrderProto {
     int32 quantity = 3;
     float price = 4;
     string status = 5;
+    string user_email= 6;
+    string user_phone = 7;
 }
+
+//Note: Protoc command
+//F:\kafka_project>
+// protoc --python_out=order_service/order_service order_service/order_service/order.proto

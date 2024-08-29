@@ -9,7 +9,7 @@ class MockOrderService:
     def create_order(self, order_data):
         order_id = len(self.orders) + 1
         order_data["id"] = order_id
-        order_proto = ParseDict(order_data, OrderProto())
+        order_proto = ParseDict(order_data, OrderProto()) # Parse a dictionary into an OrderProto object (Protocol Buffers message)
         self.orders.append(order_proto)
         return order_proto  # Return the order object instead of order_data
     

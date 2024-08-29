@@ -8,8 +8,6 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_ORDER_STATUS: str
-    TOPIC_USER_EVENTS: str
-    CONSUMER_GROUP_NOTIFYME_MANAGER: str
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
@@ -21,8 +19,8 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-logger.info(f"BOOTSTRAP_SERVER: SUCCESSFULLY RETRIEVED")
-logger.info(f"TOPIC_ORDER_STATUS: SUCCESSFULLY RETRIEVED")
-logger.info(f"MOCK_SUPABASE: {settings.MOCK_SUPABASE}")
-logger.info(f"SUPABASE_URL: SUCCESSFULLY RETRIEVED")
-logger.info(f"SUPABASE_KEY: SUCCESSFULLY RETRIEVED")
+
+logging.info("BOOTSTRAP_SERVER: %s", settings.BOOTSTRAP_SERVER)
+logging.info("TOPIC_ORDER_STATUS: %s", settings.TOPIC_ORDER_STATUS)
+logging.info("MOCK_SUPABASE: %s", settings.MOCK_SUPABASE)
+logging.info("SUPABASE_URL: %s", settings.SUPABASE_URL)
