@@ -35,3 +35,27 @@ As you can see, the `status` key was updated, and the `tracking_number` key was 
 In the `update_order()` method, this means that the `order` dictionary is updated with the new values from the `update_data` dictionary. If the `update_data` dictionary contains new keys, they will be added to the `order` dictionary. If it contains updated values for existing keys, they will be updated accordingly.
 
 For example, if `order` is `{'id': 1, 'status': 'pending', 'total': 100}` and `update_data` is `{'status': 'shipped', 'notes': 'Thanks for your order!'}`, the resulting `order` dictionary would be `{'id': 1, 'status': 'shipped', 'total': 100, 'notes': 'Thanks for your order!'}`.
+
+notification_payload = NotificationPayload(
+        order_id=created_order.id,
+        status="created",
+        user_email="saqibmurtazakhan@gmail.com",
+        user_phone="+923171938567"
+    )
+async def send_notification(
+        payload: NotificationPayload, 
+        producer: AIOKafkaProducer,
+        topic: str = settings.TOPIC_ORDER_STATUS):
+    await producer.start()
+    try:
+        payload_proto = NotificationPayloadProto(
+            order_id=payload.order_id,
+            status=payload.status,
+            user_email=payload.user_email,
+            user_phone=payload.user_phone
+        )
+        message = payload_proto.SerializeToString()
+        await producer.send_and_wait(topic, message)
+        logging.info(f"NOTIFICATION_SENT_TO {payload.order_id, payload.user_email}")
+    finally:
+        await producer.stop()

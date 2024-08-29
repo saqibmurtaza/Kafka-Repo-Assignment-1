@@ -124,7 +124,7 @@ services:
     depends_on:
       - broker
     env_file:
-      - ./notification_service/notification_service/.env
+      - .env
     networks:
       - kong-net
 

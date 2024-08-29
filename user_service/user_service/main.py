@@ -1,40 +1,32 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
 from contextlib import asynccontextmanager
+from typing import Optional, Union, Dict
 from .dependencies import get_mock_supabase_client, get_supabase_cleint
-from .consumer import start_consumer
 from .mock_supabase import MockSupabaseClient
 from .producer import get_kafka_producer
-from .models import User, UserRegistration,UserListResponse, LoginRequest, UserMessage
+from .models import User, UserRegistration,UserListResponse, LoginRequest, UserMessage, Token, ActionEnum
 from .settings import settings
-from .notifications_logic import send_notification, NotificationPayload, notify_order_status
+from .notify_logic import notify_user_profile, notify_user_registration, send_token
 from aiokafka import AIOKafkaProducer
-from pydantic import BaseModel
-import logging, asyncio, json
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app=FastAPI):
-    logging.info('Consumer Task processing...')
-    topics= [settings.TOPIC_USER_EVENTS]
-    consumer_task = asyncio.create_task(
-        start_consumer(
-            topics,
-            bootstrap_server=settings.BOOTSTRAP_SERVER,
-            consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER
-        )
-    )
-    try:
-        yield
-    finally:
-        consumer_task.cancel()
-        try:
-            await consumer_task
-        except asyncio.CancelledError:
-            print("Consumer Task cancelled")
+async def lifespan(app: FastAPI):
+    logging.info(f"""
+    !**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!
+    WELCOME TO ONLINE SHOPPING MALL!
+    Explore a wide variety of products tailored to your needs.
+    Enjoy seamless shopping with secure payments and fast delivery.
+    Don't miss out on our exclusive offers and discounts!
+    Happy shopping!
+    !**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!
+    """)
+    yield
+    logging.info(f"THANK YOU FOR VISITING OUR ONLINE SHOPPING MALL. WE HOPE TO SEE YOU AGAIN SOON!")
 
 app = FastAPI(
     lifespan=lifespan,
@@ -51,71 +43,86 @@ def get_client():
     if settings.MOCK_SUPABASE:
         return get_mock_supabase_client()
     else:
-        return get_supabase_cleint
+        return get_supabase_cleint()
 
 @app.get("/")
 def read_root():
     return {"message": "User_Service"}
 
+@app.post("/user/action")
+async def send_manual_request(
+    payload_action: ActionEnum,
+    producer: AIOKafkaProducer = Depends(get_kafka_producer)
+    ):
+    await producer.send(settings.TOPIC_USER_EVENTS, payload_action.value.encode('utf-8'))
+
+    return {"message": "Action received", "action": payload_action.value}
+
 @app.post("/user/signup", response_model=User)
 async def register_user(
-        user: UserRegistration,
+        payload: UserRegistration,
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
-        client: MockSupabaseClient = Depends(get_client)):
-    user_data = {"username": user.username, "email": user.email, "password": user.password}
+        client: MockSupabaseClient = Depends(get_client)
+        ):
+    user_data = {"username": payload.username, "email": payload.email, "password": payload.password}
+    if payload.action != "Signup":
+        raise HTTPException(status_code=400, detail="Invalid action. Action must be 'Signup'.")
+
     for existing_user in client.users:
-        if existing_user["email"] == user.email:
+        if existing_user["email"] == payload.email:
             raise HTTPException(status_code=400, detail="EMAIL_ALREADY_IN_USE")
     
     response = client.auth.sign_up(user_data)
     registered_user= response['user']
-    user_message = UserMessage(action="register", user=registered_user)
-    
-    await send_notification(producer, 
-                            settings.TOPIC_USER_EVENTS, 
-                            user_message)
-    
-    # Send notification
-    notification_payload = NotificationPayload(
-        user_email=user.email,
-        status="registered",
-        order_id=registered_user.id,
-        action="registration"
+
+    user_event_payload= UserRegistration(
+        username= payload.username,
+        email= payload.email,
+        password= payload.password,
+        action= payload.action
     )
-    await notify_order_status(notification_payload)
-    logging.info(f'USER_REGISTERED : {registered_user}')
+    # USER_SIGNUP_NOTIFICATION
+    await notify_user_registration(user_event_payload, producer)
+   
     return registered_user
 
 @app.post("/user/login")
-async def login(request: LoginRequest,
+async def login(
+                payload: LoginRequest,
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: MockSupabaseClient = Depends(get_client)):
-    response = client.auth.login(request)  # Pass the request object
+    response = client.auth.login(payload)
+
+    if payload.action != "Login":
+        raise HTTPException(status_code=400, detail="Invalid action. Action must be 'Signup'.")
+
     if "error" in response:
         raise HTTPException(status_code=500, detail=response)
     
     user = response["user"]
-    token = response["token"]
-    
-    user_message = UserMessage(action="login", user=user)
-    await send_notification(producer, settings.TOPIC_USER_EVENTS, user_message)
+    token = response["token"].access_token
 
-    # Send notification
-    notification_payload = NotificationPayload(
-        user_email=user.email,
-        status="logged_in",
-        order_id=user.id,
-        action="login"
-    )
-    await notify_order_status(notification_payload)
+    # Create Token and LoginRequest instances
+    token_payload = Token(
+        access_token=token
+        )
+    message_payload = LoginRequest(
+        username=payload.username,
+        email=payload.email, 
+        password=payload.password,
+        action=payload.action
+        )
+
+    await send_token(token_payload, message_payload, producer)
     
-    return {"user": user, "token": token}
+    return {"user": user,  "token": token_payload}
 
 @app.get("/user/profile")
 async def get_user_profile(
-        token: str, 
+        token: str = Query(..., alias="token"),
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
         client: MockSupabaseClient = Depends(get_client)):
+    
     response = client.auth.user_profile(token)
     if response.get("status") == "failed":
         return {"error": response["error"], "status": "failed"}
@@ -125,18 +132,7 @@ async def get_user_profile(
         return {"error": "User profile not found", "status": "failed"}
 
     user_message = UserMessage(action="get_user_profile", user=user)
-    await send_notification(producer, 
-                            settings.TOPIC_USER_EVENTS, 
-                            user_message)
-    
-    # Send notification
-    notification_payload = NotificationPayload(
-        user_email=user.email,
-        status="profile_viewed",
-        order_id=user.id,
-        action="get_profile"
-    )
-    await notify_order_status(notification_payload)
+    await notify_user_profile(user_message, producer)
     
     return response
 

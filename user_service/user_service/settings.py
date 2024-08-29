@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_USER_EVENTS: str
-    CONSUMER_GROUP_NOTIFYME_MANAGER: str
-    MOCK_SUPABASE: bool = True
+    MOCK_SUPABASE: bool
     SUPABASE_URL: str
     SUPABASE_KEY: str
 
@@ -21,6 +20,8 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-logger.info(f"BOOTSTRAP_SERVER UPLOAD SUCCESSFULLY")
-logger.info(f"TOPIC_USER_EVENTS: UPLOAD SUCCESSFULLY")
-logger.info(f"CONSUMER_GROUP_NOTIFYME_MANAGER: UPLOAD SUCCESSFULLY")
+logging.info("BOOTSTRAP_SERVER: %s", settings.BOOTSTRAP_SERVER)
+logging.info("TOPIC_USER_EVENTS: %s", settings.TOPIC_USER_EVENTS)
+logging.info("MOCK_SUPABASE: %s", settings.MOCK_SUPABASE)
+logging.info("SUPABASE_URL: %s", settings.SUPABASE_URL)
+logging.info("SUPABASE_KEY: %s", settings.SUPABASE_KEY)

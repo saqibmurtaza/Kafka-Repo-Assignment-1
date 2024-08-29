@@ -1,18 +1,32 @@
 from pydantic import BaseModel
-
-class NotificationPayload(BaseModel):
-    order_id: int
-    status: str
-    user_email: str
-    user_phone: str
+from typing import Optional
 
 class User(BaseModel):
-    id: int
+    id: Optional[int] = None
     username: str
     email: str
     password: str
-    phone: str= None
+
+class UserRegistration(BaseModel):
+    username: str
+    email: str
+    password: str
+    action: str = "Signup"
+
+class LoginRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    action: str = "Login"
+
+class Token(BaseModel):
+    access_token: str
+    
+class UserListResponse(BaseModel):
+    username: str
+    email: str
 
 class UserMessage(BaseModel):
     action: str
     user: User
+

@@ -1,27 +1,27 @@
+from pydantic_settings import BaseSettings
 import logging
-from starlette.config import Config
-from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-try:
+class Settings(BaseSettings):
+    BOOTSTRAP_SERVER: str
+    TOPIC_USER_EVENTS: str
+    CONSUMER_GROUP_NOTIFY_EVENTS: str
+    EMAIL_HOST: str
+    EMAIL_PORT: int
+    EMAIL_USER: str
+    EMAIL_APP_PASSWORD: str
+    class Config:
+        env_file = '../.env'
+        env_file_encoding = 'utf-8'
+        extra = 'allow'
 
-    config = Config('.env')
+settings = Settings()
 
-    # Load Kafka-related environment variables
-    BOOTSTRAP_SERVER = config('BOOTSTRAP_SERVER', cast=str)
-    TOPIC_ORDER_STATUS = config('TOPIC_ORDER_STATUS')
-    TOPIC_USER_EVENTS= config('TOPIC_USER_EVENTS')
-    CONSUMER_GROUP_NOTIFYME_MANAGER = config('CONSUMER_GROUP_NOTIFYME_MANAGER', cast=str)
-
-    # Log system-generated messages
-    logger.info(f"Loaded BOOTSTRAP_SERVER: {BOOTSTRAP_SERVER} from .env")
-    logger.info(f"Loaded TOPIC_ORDER_STATUS: {TOPIC_ORDER_STATUS} from .env")
-    logger.info(f"Loaded CONSUMER_GROUP_NOTIFYME_MANAGER: {CONSUMER_GROUP_NOTIFYME_MANAGER} from .env")
-
-    logger.info('Environment variables loaded successfully from .env file')
-
-except Exception as e:
-    logger.error(f'FAILED TO LOAD ENVIRONMENT VARIABLES FROM .env file: {e}')
-    raise
+logging.info("BOOTSTRAP_SERVER: %s", settings.BOOTSTRAP_SERVER)
+logging.info("TOPIC_USER_EVENTS: %s", settings.TOPIC_USER_EVENTS)
+logging.info("CONSUMER_GROUP_NOTIFY_EVENTS: %s", settings.CONSUMER_GROUP_NOTIFY_EVENTS)
+logging.info("EMAIL_HOST: %s", settings.EMAIL_HOST)
+logging.info("EMAIL_PORT: %s", settings.EMAIL_PORT)
+logging.info("EMAIL_USER: %s", settings.EMAIL_USER)

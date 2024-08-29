@@ -1,3 +1,6 @@
+# CODE ARCHITECTURE CHANGED - PRODUCER SEND NOTIFICATIONS 
+TO NOTIFICATION_SERVICE CONSUMER
+
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
 from pydantic import ValidationError

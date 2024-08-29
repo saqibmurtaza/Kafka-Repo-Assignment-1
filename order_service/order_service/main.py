@@ -3,9 +3,8 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 from typing import List
 from aiokafka import AIOKafkaProducer
-from .notification import send_notification
+from .notification import send_order_status_notification, send_user_info_notification
 from .producer import get_kafka_producer
-from .consumer import start_consumer
 from .dependencies import get_mock_order_service, get_real_order_service
 from .model import Order, NotificationPayload, OrderCreated
 from .settings import settings
@@ -13,21 +12,6 @@ import logging, asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-@asynccontextmanager
-async def lifespan(app:FastAPI):
-    logger.info('lifespan function ...')
-    consumer_task= asyncio.create_task(
-        start_consumer(
-            topic=settings.TOPIC_USER_EVENTS,
-            bootstrap_server=settings.BOOTSTRAP_SERVER,
-            consumer_group_id=settings.CONSUMER_GROUP_NOTIFYME_MANAGER))
-
-    try:
-        yield
-    finally:
-        consumer_task.cancel()
-        await consumer_task
 
 app = FastAPI(
     title='SaqibShopSphere _ Order Service',
@@ -58,13 +42,22 @@ async def create_order(
     created_order = service.create_order(order_data)
     logging.info(f'ORDER_CREATED : {created_order}')
 
-    notification_payload = NotificationPayload(
-        order_id=created_order.id,
-        status="created",
-        user_email="saqibmurtazakhan@gmail.com",
-        user_phone="+923171938567"
+    order_status_payload = OrderCreated(
+        item_name=created_order.item_name,
+        quantity=created_order.quantity,
+        price=created_order.price,
+        status=created_order.status
     )
-    await send_notification(notification_payload, producer)
+    await send_order_status_notification(order_status_payload, producer)
+
+    # Prepare user information for notification
+    # user_info_payload = NotificationPayload(
+    #     order_id=created_order.id,
+    #     status="created",
+    #     user_email="user@example.com",  # You would get this from the actual user data
+    #     user_phone="+1234567890"         # You would get this from the actual user data
+    # )
+    # await send_user_info_notification(user_info_payload, producer)
 
     return created_order
 
@@ -80,16 +73,16 @@ async def update_order(
     logging.info(f'ORDER_UPDATED : {updated_order}')
 
     if updated_order:
-        notification_payload = NotificationPayload(
-            order_id=updated_order.id,
-            status="updated",
-            user_email="saqibmurtazakhan@gmail.com",
-            user_phone="+923171938567"
-        )
-        await send_notification(notification_payload, producer)
+        order_status_payload = OrderCreated(
+        item_name=updated_order.item_name,
+        quantity=updated_order.quantity,
+        price=updated_order.price,
+        status=updated_order.status
+    )
+        await send_order_status_notification(order_status_payload, producer)
         return updated_order
     else:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
 
 @app.delete("/orders/{order_id}", response_model=dict)
 async def delete_order(
@@ -97,16 +90,17 @@ async def delete_order(
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     service = Depends(get_order_service)
 ):
-    success = service.delete_order(order_id)
-    if success:
-        notification_payload = NotificationPayload(
-            order_id=order_id,
-            status="deleted",
-            user_email="saqibmurtazakhan@gmail.com",
-            user_phone="+923171938567"
-        )
-        await send_notification(notification_payload, producer)
-        logging.info(f'ORDER_DELETED : {success}')
+    response = service.delete_order(order_id)
+    if response:
+        order_status_payload = OrderCreated(
+        item_name=response.item_name,
+        quantity=response.quantity,
+        price=response.price,
+        status=response.status
+    )
+        await send_order_status_notification(order_status_payload, producer)
+
+        logging.info(f'ORDER_DELETED : {response}')
         return {"message": "ORDER_DELETED_SUCCESSFULLY"}
     else:
         raise HTTPException(status_code=404, detail="Order not found")

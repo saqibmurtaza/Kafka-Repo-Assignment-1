@@ -15,7 +15,7 @@ class MockOrderService:
     
     def update_order(self, order_id: int, update_data):
         for my_order in self.orders:
-            if my_order.id == order_id:  # Assuming order_proto has an 'id' attribute
+            if my_order.id == order_id:  
                 for key, value in update_data.items():
                     setattr(my_order, key, value)
                 return my_order
@@ -24,13 +24,13 @@ class MockOrderService:
     
     def track_order(self, order_id: int):
         for my_order in self.orders:
-            if my_order.id == order_id:  # Assuming order_proto has an 'id' attribute
+            if my_order.id == order_id:  
                 return my_order
         return None
     
     def delete_order(self, order_id: int):
         for my_order in self.orders:
-            if my_order.id == order_id:  # Assuming order_proto has an 'id' attribute
+            if my_order.id == order_id:  
                 self.orders.remove(my_order)
                 return my_order
         return None
