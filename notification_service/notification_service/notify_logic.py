@@ -1,6 +1,6 @@
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from .models import UserRegistration, Order
+from .models import UserRegistration, Token, Order
 from .settings import settings
 import smtplib
 import json, logging
@@ -20,11 +20,12 @@ async def process_user_message(message: dict):
             action=message.get("action")
         )
         action = data.action
+        access_token = message.get("access_token")  # Extract access token from the message
 
         if action == "Signup":
             await send_signup_email(data)
         elif action == "Login":
-            await send_login_email(data)
+            await send_login_email(data, access_token) # Pass the access token
         elif action == "get_user_profile":
             await send_profile_email(data)
         else:
@@ -80,57 +81,72 @@ async def send_order_email(data: Order):
 async def send_signup_email(data: UserRegistration):
     subject = "Welcome to Our Service!"
     body = f"Hello {data.username},\n\nThank you for signing up!"
-    logging.info(f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!")
-    logging.info(f"PREPARING_TO_SEND_SIGNUP_EMAIL_TO {data.email} FOR_USER {data.username}")
     await send_email(data.email, subject, body)
     logging.info(
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"====================================================="
-                f"SIGN_UP_MESSAGE_DISPATCHED_TO_USER"
-                f"====================================================="
-                f"PROCESSED_MESSAGE:"
-                f"ACTION : {data.action}"
-                f"USERNAME : {data.username}"
-                f"EMAIL : {data.email}"
+                f"=====================================================\n"
+                f"SIGN_UP_MESSAGE_DISPATCHED_TO_USER\n"
+                f"=====================================================\n"
+                f"\nPROCESSED_MESSAGE:\n"
+                f"ACTION : {data.action}\n"
+                f"USERNAME : {data.username}\n"
+                f"EMAIL : {data.email}\n"
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
             )
 
 #################################################
 ##### LOGIN_EMAIL_FUNCTION
 #################################################
-async def send_login_email(data: UserRegistration):
-    subject = "Login Alert"
-    body = f"Hello {data.username},\n\nYou have successfully logged in."
-    logging.info(f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!")
-    logging.info(f"PREPARING_TO_SEND_LOGIN_ALERT_EMAIL_TO {data.email} FOR_USER {data.username}")
+async def send_login_email(data: UserRegistration, access_token:str):
+    subject = "Login Alert/Generated Token"
+    body = body = f"""
+    Hello {data.username},
+
+    You have successfully logged in.
+
+    Your access token is: {access_token}
+
+    Best regards,
+    Your Service Team
+    """
     await send_email(data.email, subject, body)
     logging.info(
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"====================================================="
-                f"LOGIN_MESSAGE_DISPATCHED_TO_USER"
-                f"====================================================="
-                f"PROCESSED_MESSAGE:"
-                f"ACTION : {data.action}"
-                f"EMAIL : {data.email}"
+                f"=====================================================\n"
+                f"LOGIN_MESSAGE_&_TOKEN_DISPATCHED_TO_USER\n"
+                f"=====================================================\n"
+                f"\nPROCESSED_MESSAGE:\n"
+                f"ACTION : {data.action}\n"
+                f"EMAIL : {data.email}\n"
+                f"\nTOKEN : {access_token}\n"
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
             )
+
 #################################################
 ##### USER_PROFILE_SEND_EMAIL_FUNCTION
 #################################################
 async def send_profile_email(data: UserRegistration):
     subject = "Profile Accessed"
-    body = f"Hello {data.username},\n\nYour profile was accessed."
-    logging.info(f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!")
-    logging.info(f"PREPARING_TO_PROFILE_ACCESSED_EMAIL_TO {data.email} FOR_USER {data.username}")
+    body = f"""
+    Hello {data.username},\n\n
+    Your profile was details:
+    {data.username},
+    {data.email},
+    {data.password}
+    
+    Thanks.
+    ONLINE_SHOPPING_MALL -TEAM
+    """
     await send_email(data.email, subject, body)
     logging.info(
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"====================================================="
-                f"USER_PROFILE_DISPATCHED_TO_USER"
-                f"====================================================="
-                f"PROCESSED_MESSAGE:"
-                f"ACTION : {data.action}"
-                f"EMAIL : {data.email}"
+                f"=====================================================\n"
+                f"USER_PROFILE_DISPATCHED_TO_USER\n"
+                f"=====================================================\n"
+                f"\nPROCESSED_MESSAGE:\n"
+                f"ACTION : {data.action}\n"
+                f"USERNAME : {data.username}\n"
+                f"EMAIL : {data.email}\n"
                 f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
             )
     

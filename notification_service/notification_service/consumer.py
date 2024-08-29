@@ -17,13 +17,11 @@ async def consume():
     try:
         async for msg in consumer:
             # Decode received messages
-            logging.info(f"\nRECEIVED_MESSAGE : {msg}\n")
             decoded_msg= msg.value.decode('utf-8') # from bytes to json_formated string
             payload_dict= json.loads(decoded_msg) # from string to dict
    
             if 'username' in payload_dict:
                 await process_user_message(payload_dict)
-                logging.info(f"------USER_SERVICE_MESSAGES : {payload_dict}")
             elif 'item_name' in payload_dict:
                 await process_order_message(payload_dict)
             else:
