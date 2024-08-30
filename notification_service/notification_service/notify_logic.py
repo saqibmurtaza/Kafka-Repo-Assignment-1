@@ -1,6 +1,7 @@
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from .models import UserRegistration, Token, Order
+from typing import Dict
+from .models import UserRegistration, Order, Inventory
 from .settings import settings
 import smtplib
 import json, logging
@@ -185,3 +186,34 @@ async def send_email(to_email: str, subject: str, body: str):
 
 
 
+#################################################
+##### INVENTORY_SERVICE_MESSAGE_PROCEESSING_FUNCTION
+#################################################
+
+async def process_inventory_message(message: Dict):
+    try:
+        data = Inventory(
+            item_name=message.get("item_name"),
+            quantity=message.get("quantity"),
+            threshold=message.get("threshold"),
+            email=message.get("email")
+        )
+        if data.quantity <= data.threshold:
+            await send_inventory_alert_email(data)
+    except json.JSONDecodeError as e:
+        logging.error(f"FAILED_TO_DECODE_MESSAGE: {e}")
+
+async def send_inventory_alert_email(data: Inventory):
+    subject = "Inventory Alert"
+    body = f"""
+    Hello,
+
+    The inventory for {data.item_name} is low. Current quantity: {data.quantity}.
+
+    Please restock as soon as possible.
+
+    Best regards,
+    Inventory Management Team
+    """
+    logging.info(f"PREPARING_TO_SEND_INVENTORY_ALERT_EMAIL_TO {data.email} FOR_ITEM {data.item_name}")
+    await send_email(data.email, subject, body)

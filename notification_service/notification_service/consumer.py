@@ -1,6 +1,6 @@
 from aiokafka import AIOKafkaConsumer
 from .settings import settings
-from .notify_logic import process_user_message, process_order_message
+from .notify_logic import process_user_message, process_order_message, process_inventory_message
 import asyncio, json, logging
 
 logging.basicConfig(level=logging.INFO)
@@ -10,6 +10,7 @@ async def consume():
     consumer = AIOKafkaConsumer(
         settings.TOPIC_USER_EVENTS,
         settings.TOPIC_ORDER_STATUS,
+        settings.TOPIC_INVENTORY_UPDATES,
         bootstrap_servers=settings.BOOTSTRAP_SERVER,
         group_id=settings.CONSUMER_GROUP_NOTIFY_EVENTS
     )
@@ -22,6 +23,8 @@ async def consume():
    
             if 'username' in payload_dict:
                 await process_user_message(payload_dict)
+            elif 'threshold' in payload_dict:
+                await process_inventory_message(payload_dict)
             elif 'item_name' in payload_dict:
                 await process_order_message(payload_dict)
             else:

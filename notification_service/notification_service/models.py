@@ -40,3 +40,12 @@ class Order(BaseModel):
     user_phone: str
 
 
+from pydantic import BaseModel
+from typing import Optional
+
+class Inventory(BaseModel):
+    id: Optional[int] = None
+    item_name: str
+    quantity: int
+    threshold: int  # The minimum quantity before a restock alert is triggered
+    email: str  # Email to notify when the threshold is reached

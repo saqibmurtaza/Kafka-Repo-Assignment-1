@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from contextlib import asynccontextmanager
-from .consumer import start_consumer
 from .model import Inventory, InventoryResponse, InventoryCreate
 from .dependencies import get_mock_inventory, get_real_inventory
 from .producer import get_kafka_producer
@@ -13,27 +12,8 @@ import logging, json, asyncio
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app=FastAPI):
-    logging.info('Consumer Task processing...')
-    consumer_task= asyncio.create_task(
-        start_consumer(
-            topic= settings.TOPIC_INVENTORY_UPDATES,
-            bootstrap_server= settings.BOOTSTRAP_SERVER,
-            consumer_group_id= settings.CONSUMER_GROUP_INVENTORY_MANAGER
-        )
-    )
-    try:
-        yield
-    finally:
-        consumer_task.cancel()
-        try:
-            await consumer_task
-        except asyncio.CancelledError:
-            print("Consumer Task cancelled")
-
 app = FastAPI(
-    lifespan=lifespan,
+    
     title= 'ShopSphere _ Inventory Service',
     servers=[
         {
@@ -52,66 +32,128 @@ async def read_root():
     return {"message" : "Inventory Service with Kafka"}
 
 @app.post("/inventory", response_model=InventoryResponse)
-async def create_inventory(inventory:InventoryCreate,
-                producer: AIOKafkaProducer =Depends(get_kafka_producer),
-                service: MockInventoryService=Depends(get_inventory_service)):
+async def create_inventory(inventory: InventoryCreate,
+                           producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                           service: MockInventoryService = Depends(get_inventory_service)):
     
-    response= inventory.model_dump() #change pydantic model instance to dict
-    created_inventory= service.create_inventory(response)
+    response = inventory.model_dump()  # Convert pydantic model instance to dict
+    created_inventory = service.create_inventory(response)
 
     # Serialize the dictionary to a JSON string before sending
-    response_json= json.dumps(response).encode('utf-8')
+    response_json = json.dumps(response).encode('utf-8')
     await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, response_json)
     logging.info(f'STOCK-CREATED :{created_inventory}')
+    
+    # Send notification if inventory is low
+    if created_inventory['quantity'] <= created_inventory['threshold']:
+        notification_payload = {
+            "item_name": created_inventory['item_name'],
+            "quantity": created_inventory['quantity'],
+            "threshold": created_inventory['threshold'],
+            "email": created_inventory['email']
+        }
+        notification_json = json.dumps(notification_payload).encode('utf-8')
+        await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
+        logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+    
     return created_inventory
 
 @app.get("/inventory/{item_id}", response_model=InventoryResponse)
-async def track_inventory(item_id:int,
-                producer: AIOKafkaProducer=Depends(get_kafka_producer), 
-                service: MockInventoryService=Depends(get_inventory_service)):
-    tracked_inventory= service.track_inventory(item_id)
+async def track_inventory(item_id: int,
+                          producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                          service: MockInventoryService = Depends(get_inventory_service)):
+    tracked_inventory = service.track_inventory(item_id)
     logging.info(f'STOCK_ITEM_TRACKED : {tracked_inventory}')
     
     if tracked_inventory:
-        tracked_inv_json= json.dumps(tracked_inventory).encode('utf-8')
+        tracked_inv_json = json.dumps(tracked_inventory).encode('utf-8')
         await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, tracked_inv_json)
+        
+        # Send notification if inventory is low
+        if tracked_inventory['quantity'] <= tracked_inventory['threshold']:
+            notification_payload = {
+                "item_name": tracked_inventory['item_name'],
+                "quantity": tracked_inventory['quantity'],
+                "threshold": tracked_inventory['threshold'],
+                "email": tracked_inventory['email']
+            }
+            notification_json = json.dumps(notification_payload).encode('utf-8')
+            await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
+            logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+        
         return tracked_inventory
     raise HTTPException(status_code=404, detail='Item not found in Inventory')
 
 @app.put("/inventory/{item_id}", response_model=InventoryResponse)
-async def update_inventory(item_id:int, 
-                update_data:InventoryCreate,
-                producer: AIOKafkaProducer=Depends(get_kafka_producer), 
-                service: MockInventoryService=Depends(get_inventory_service)):
+async def update_inventory(item_id: int,
+                           update_data: InventoryCreate,
+                           producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                           service: MockInventoryService = Depends(get_inventory_service)):
     
     update_data = {k: v for k, v in update_data.model_dump().items() if k != 'id'}
-    updated_stock= service.update_inventory(item_id, update_data)
+    updated_stock = service.update_inventory(item_id, update_data)
     logging.info(f'STOCK_UPDATED : {updated_stock}')
     
     if updated_stock:
-        updated_stock_json= json.dumps(update_data).encode('utf-8')
+        updated_stock_json = json.dumps(update_data).encode('utf-8')
         await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, updated_stock_json)
+        
+        # Send notification if inventory is low
+        if updated_stock['quantity'] <= updated_stock['threshold']:
+            notification_payload = {
+                "item_name": updated_stock['item_name'],
+                "quantity": updated_stock['quantity'],
+                "threshold": updated_stock['threshold'],
+                "email": updated_stock['email']
+            }
+            notification_json = json.dumps(notification_payload).encode('utf-8')
+            await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
+            logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+        
         return updated_stock
     raise HTTPException(status_code=404, detail='Item not found in Inventory')
 
 @app.delete("/inventory/{item_id}", response_model=InventoryResponse)
-async def delete_inventory(item_id:int,
-                producer: AIOKafkaProducer=Depends(get_kafka_producer),
-                service: MockInventoryService=Depends(get_inventory_service)):
+async def delete_inventory(item_id: int,
+                           producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                           service: MockInventoryService = Depends(get_inventory_service)):
     
-    deleted_stock= service.delete_inventory(item_id)
+    deleted_stock = service.delete_inventory(item_id)
     logging.info(f'STOCK_TO_BE_DELETED : {deleted_stock}')
+    
     if deleted_stock:
-        deleted_stock_json= json.dumps(deleted_stock).encode('utf-8')
+        deleted_stock_json = json.dumps(deleted_stock).encode('utf-8')
         await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, deleted_stock_json)
         return deleted_stock
     raise HTTPException(status_code=404, detail='ITEM_NOT_FOUND')
 
-@app.get("/inventory", response_model=list[InventoryResponse])
-async def get_stock_list(service: MockInventoryService=Depends(get_inventory_service)):
-    inventory_list= service.stock_list()
-    logging.info(f'STOCK_LIST : {inventory_list}')
-    return inventory_list
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 origins = [
     "http://localhost:8000",
