@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional
-from enum import Enum
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -19,14 +18,6 @@ class UserInfo(BaseModel):
     email: str
     password: str
     
-
-class LoginRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-    api_key: Optional[str] = None
-    action: str = "Login"
-    
 class UserListResponse(BaseModel):
     username: str
     email: str
@@ -34,11 +25,4 @@ class UserListResponse(BaseModel):
 class UserMessage(BaseModel):
     action: str
     user: User
-
-# class ActionEnum(Enum):
-#     LOGIN = "login"
-#     SIGNUP = "signup"
-
-# class Token(BaseModel):
-#     access_token: str
 

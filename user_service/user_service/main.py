@@ -84,10 +84,11 @@ async def login(
                 payload: UserInfo,
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: MockSupabaseClient = Depends(get_client)):
+    
     response = client.auth.login(payload)
-
     user_data = response.get("user")
-    generated_apikey = response.get("api_key")
+    generated_apikey = user_data.api_key
+    logging.info(f'GENERATED_API_KEY:{generated_apikey}')
 
     message_payload = User(
         username=payload.username,

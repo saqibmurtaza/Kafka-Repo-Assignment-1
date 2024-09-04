@@ -1,4 +1,3 @@
-from .models import LoginRequest
 from .models import User
 import logging, secrets
 
@@ -30,9 +29,9 @@ class MockSupabaseAuth():
             "api_key": user_data["api_key"]
             }
 
-    def login(self, login_request: LoginRequest):
-        email = login_request.email
-        password = login_request.password
+    def login(self, payload: User):
+        email = payload.email
+        password = payload.password
 
         for my_user in self.users:
             if my_user["email"] == email and my_user["password"] == password:
@@ -40,7 +39,7 @@ class MockSupabaseAuth():
                 user_data= {
                     "user": User(id=my_user["id"], 
                                 username=my_user["username"], 
-                                email=my_user["email"], 
+                                email=my_user["email"],
                                 password=my_user["password"],
                                 api_key=my_user['api_key']
                                 )
