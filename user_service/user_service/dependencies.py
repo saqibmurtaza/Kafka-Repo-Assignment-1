@@ -1,4 +1,4 @@
-from .mock_supabase import MockSupabaseClient
+from .mock_user import MockSupabaseClient
 import os, supabase
 
 client_instance= MockSupabaseClient()

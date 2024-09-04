@@ -8,10 +8,11 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_INVENTORY_UPDATES: str
-    CONSUMER_GROUP_INVENTORY_MANAGER: str
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
 
 
     class Config:

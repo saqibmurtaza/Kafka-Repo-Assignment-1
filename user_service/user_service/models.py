@@ -11,21 +11,21 @@ class User(BaseModel):
     username: str
     email: str
     password: str
+    action: str = "Signup"
+    api_key: Optional[str] = None
 
-class UserRegistration(BaseModel):
+class UserInfo(BaseModel):
     username: str
     email: str
     password: str
-    action: str = "Signup"
+    
 
 class LoginRequest(BaseModel):
     username: str
     email: str
     password: str
+    api_key: Optional[str] = None
     action: str = "Login"
-
-class Token(BaseModel):
-    access_token: str
     
 class UserListResponse(BaseModel):
     username: str
@@ -35,7 +35,10 @@ class UserMessage(BaseModel):
     action: str
     user: User
 
-class ActionEnum(Enum):
-    LOGIN = "login"
-    SIGNUP = "signup"
+# class ActionEnum(Enum):
+#     LOGIN = "login"
+#     SIGNUP = "signup"
+
+# class Token(BaseModel):
+#     access_token: str
 

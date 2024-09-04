@@ -16,6 +16,12 @@ class MockSupabaseAuth():
         self.users= user
         self.access_token= None
 
+    def get_user_by_id(self, user_id: int):  # <--- Added method
+        for user in self.users:
+            if user["id"] == user_id:
+                return user
+        return None
+
     def sign_up(self, user_data):
         for my_user in self.users:
             if my_user["email"] == user_data["email"]:
@@ -30,7 +36,7 @@ class MockSupabaseAuth():
         
         for my_user in self.users:
             if my_user["email"] == email and my_user["password"] == password:
-                access_token = generate_fake_token(my_user["id"], my_user["email"], expires_in_hours=1)
+                access_token = generate_fake_token(my_user["id"], my_user["email"], expires_in_hours=5)
                 # logging.info(f'Generated_Token : {access_token}')
                 decoded = jwt.decode(access_token, "My_Secret_Key", algorithms=["HS256"])
                 logging.info(f'TOKEN-DECODED : {decoded}')
@@ -57,9 +63,10 @@ class MockSupabaseAuth():
 
 
 
-JWT_SECRET = "My_Secret_Key"  
+JWT_SECRET = 'My_Secret_Key'
 def generate_fake_token(user_id, email, expires_in_hours):  
-    payload = {  
+    payload = {
+        "sub": email,
         "user_id": user_id,  
         "email": email,  
         "exp": datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),  
@@ -68,3 +75,4 @@ def generate_fake_token(user_id, email, expires_in_hours):
     }  
     token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")  
     return token
+

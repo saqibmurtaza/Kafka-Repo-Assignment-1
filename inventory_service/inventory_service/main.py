@@ -1,16 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from contextlib import asynccontextmanager
-from .model import Inventory, InventoryResponse, InventoryCreate
+from .model import InventoryResponse, InventoryCreate
 from .dependencies import get_mock_inventory, get_real_inventory
 from .producer import get_kafka_producer
 from .mock_inv_service import MockInventoryService
+from fastapi.responses import JSONResponse
 from .settings import settings
-import logging, json, asyncio
+import logging, json
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
+
 
 app = FastAPI(
     
@@ -18,7 +21,7 @@ app = FastAPI(
     servers=[
         {
         "url": "http://localhost:8011",
-        "description": "Server:Uvicorn, port:8011"
+        "description": "Routed to port 8011"
         }]
     )
 
@@ -31,10 +34,13 @@ def get_inventory_service():
 async def read_root():
     return {"message" : "Inventory Service with Kafka"}
 
+
 @app.post("/inventory", response_model=InventoryResponse)
-async def create_inventory(inventory: InventoryCreate,
-                           producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                           service: MockInventoryService = Depends(get_inventory_service)):
+async def create_inventory(
+                        inventory: InventoryCreate,
+                        producer: AIOKafkaProducer = Depends(get_kafka_producer),
+                        service: MockInventoryService = Depends(get_inventory_service)):
+    
     
     response = inventory.model_dump()  # Convert pydantic model instance to dict
     created_inventory = service.create_inventory(response)
@@ -42,7 +48,7 @@ async def create_inventory(inventory: InventoryCreate,
     # Serialize the dictionary to a JSON string before sending
     response_json = json.dumps(response).encode('utf-8')
     await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, response_json)
-    logging.info(f'STOCK-CREATED :{created_inventory}')
+    logger.info(f'STOCK-CREATED :{created_inventory}')
     
     # Send notification if inventory is low
     if created_inventory['quantity'] <= created_inventory['threshold']:
@@ -54,16 +60,19 @@ async def create_inventory(inventory: InventoryCreate,
         }
         notification_json = json.dumps(notification_payload).encode('utf-8')
         await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
-        logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+        logger.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
     
     return created_inventory
 
-@app.get("/inventory/{item_id}", response_model=InventoryResponse)
-async def track_inventory(item_id: int,
-                          producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                          service: MockInventoryService = Depends(get_inventory_service)):
-    tracked_inventory = service.track_inventory(item_id)
-    logging.info(f'STOCK_ITEM_TRACKED : {tracked_inventory}')
+@app.get("/inventory/{item_id}") #, response_model=InventoryResponse)
+async def track_inventory(
+            item_id: int,
+            token: str = Query(...,alias='Token'),
+            producer: AIOKafkaProducer = Depends(get_kafka_producer),
+            service: MockInventoryService = Depends(get_inventory_service)):
+    
+    tracked_inventory = service.track_inventory(item_id, token)
+    logger.info(f'STOCK_ITEM_TRACKED : {tracked_inventory}')
     
     if tracked_inventory:
         tracked_inv_json = json.dumps(tracked_inventory).encode('utf-8')
@@ -79,20 +88,32 @@ async def track_inventory(item_id: int,
             }
             notification_json = json.dumps(notification_payload).encode('utf-8')
             await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
-            logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+            logger.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
         
-        return tracked_inventory
-    raise HTTPException(status_code=404, detail='Item not found in Inventory')
+        return {
+            "item_name": tracked_inventory['item_name'],
+            "quantity": tracked_inventory['quantity'],
+            "threshold": tracked_inventory['threshold'],
+            "email": tracked_inventory['email'],
+            "status": "success"
+        }
+    
+    return {"error": "Item not found in Inventory", "status": "failed"}
 
 @app.put("/inventory/{item_id}", response_model=InventoryResponse)
 async def update_inventory(item_id: int,
                            update_data: InventoryCreate,
+                           token: str = Query(..., alias="token"),
                            producer: AIOKafkaProducer = Depends(get_kafka_producer),
                            service: MockInventoryService = Depends(get_inventory_service)):
     
+    user_token = service.verify_token(token)
+    if not user_token:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
     update_data = {k: v for k, v in update_data.model_dump().items() if k != 'id'}
-    updated_stock = service.update_inventory(item_id, update_data)
-    logging.info(f'STOCK_UPDATED : {updated_stock}')
+    updated_stock = service.update_inventory(item_id, update_data, token)
+    logger.info(f'STOCK_UPDATED : {updated_stock}')
     
     if updated_stock:
         updated_stock_json = json.dumps(update_data).encode('utf-8')
@@ -108,7 +129,7 @@ async def update_inventory(item_id: int,
             }
             notification_json = json.dumps(notification_payload).encode('utf-8')
             await producer.send_and_wait(settings.TOPIC_INVENTORY_UPDATES, notification_json)
-            logging.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
+            logger.info(f'LOW_STOCK_NOTIFICATION_SENT : {notification_payload}')
         
         return updated_stock
     raise HTTPException(status_code=404, detail='Item not found in Inventory')
@@ -119,7 +140,7 @@ async def delete_inventory(item_id: int,
                            service: MockInventoryService = Depends(get_inventory_service)):
     
     deleted_stock = service.delete_inventory(item_id)
-    logging.info(f'STOCK_TO_BE_DELETED : {deleted_stock}')
+    logger.info(f'STOCK_TO_BE_DELETED : {deleted_stock}')
     
     if deleted_stock:
         deleted_stock_json = json.dumps(deleted_stock).encode('utf-8')
@@ -128,55 +149,58 @@ async def delete_inventory(item_id: int,
     raise HTTPException(status_code=404, detail='ITEM_NOT_FOUND')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 origins = [
+#HTTP
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
+
+    "http://localhost:8006",
+    "http://127.0.0.1:8006",
+    "http://localhost:8007",
+    "http://127.0.0.1:8007",
+    "http://localhost:8008",
+    "http://127.0.0.1:8008",
+    "http://localhost:8009",
+    "http://127.0.0.1:8009",
+    "http://localhost:8010",
+    "http://127.0.0.1:8010",
+    "http://localhost:8011",
+    "http://127.0.0.1:8011",
+
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+#HTTPS    
     "https://localhost:8000",
     "https://127.0.0.1:8000",
-    "http://127.0.0.1:8001",
-    "http://localhost:8001",
     "https://localhost:8001",
     "https://127.0.0.1:8001",
-    "http://localhost:8080",  
-    "http://127.0.0.1:8080", 
+    
+    "https://localhost:8006",
+    "https://127.0.0.1:8006",
+    "https://localhost:8007",
+    "https://127.0.0.1:8007",
+    "https://localhost:8008",
+    "https://127.0.0.1:8008",
+    "https://localhost:8009",
+    "https://127.0.0.1:8009",
+    "https://localhost:8010",
+    "https://127.0.0.1:8010",
+    "https://localhost:8011",
+    "https://127.0.0.1:8011",
+    
     "https://localhost:8080",  
     "https://127.0.0.1:8080", 
 
 
 # Add any other origins if needed
 ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # You can specify the exact origins if needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-

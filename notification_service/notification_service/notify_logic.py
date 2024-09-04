@@ -4,7 +4,7 @@ from typing import Dict
 from .models import UserRegistration, Order, Inventory
 from .settings import settings
 import smtplib
-import json, logging
+import json, logging, requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -186,22 +186,48 @@ async def send_email(to_email: str, subject: str, body: str):
 
 
 
+NOTIFICATION_SERVICE_URL = settings.NOTIFICATION_SERVICE_URL  # <--- Adjustment: Define the URL of Notification Service
+
 #################################################
 ##### INVENTORY_SERVICE_MESSAGE_PROCEESSING_FUNCTION
 #################################################
 
 async def process_inventory_message(message: Dict):
     try:
+        # Fetch user data using a simple HTTP request <---
+        user_data = get_user_profile(message.get("user_id"))  # <--- Adjustment: Use user_id to fetch real user data
+
+        if not user_data:
+            logging.error(f"User data not found for user_id: {message.get('user_id')}")
+            return
+
         data = Inventory(
             item_name=message.get("item_name"),
             quantity=message.get("quantity"),
             threshold=message.get("threshold"),
-            email=message.get("email")
+            # email=message.get("email")
+            email=user_data["email"]  # <--- Using real email from fetched user data
+
         )
         if data.quantity <= data.threshold:
             await send_inventory_alert_email(data)
     except json.JSONDecodeError as e:
         logging.error(f"FAILED_TO_DECODE_MESSAGE: {e}")
+
+def get_user_profile(user_id: int):
+    """Fetch user profile from Notification Service."""
+    try:
+        # Make an HTTP request to fetch user profile <---
+        response = requests.get(f'{NOTIFICATION_SERVICE_URL}/user/profile/{user_id}')  # <--- Simplified HTTP request
+        if response.status_code == 200:
+            return response.json()  # <--- Return JSON data if request is successful
+        else:
+            logging.error(f"Failed to fetch user profile, status: {response.status_code}")
+            return None
+    except Exception as e:
+        logging.error(f"Error fetching user profile: {e}")
+        return None
+
 
 async def send_inventory_alert_email(data: Inventory):
     subject = "Inventory Alert"
