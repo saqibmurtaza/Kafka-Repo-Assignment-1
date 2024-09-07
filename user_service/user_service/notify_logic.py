@@ -1,7 +1,7 @@
 from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
 from .settings import settings
-from .models import UserInfo, UserMessage
+from .models import UserInfo, UserMessage, LoginInfo
 import json, logging
 
 logging.basicConfig(level=logging.INFO)

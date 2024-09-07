@@ -6,7 +6,8 @@ supabase: Client= create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 SUPABASE_URL = settings.SUPABASE_URL
 
-connection_string =str(settings.SUPABASE_DB_URL.replace('postgresql', 'postgresql+psycopg'))
+connection_string =str(settings.SUPABASE_DB_URL.replace('postgresql', 
+                                                'postgresql+psycopg'))
 
 engine = create_engine(connection_string, connect_args={}, pool_recycle=300)
 

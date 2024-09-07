@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     TOPIC_USER_EVENTS: str
     MOCK_SUPABASE: bool
     SUPABASE_URL: str
+    SUPABASE_DB_URL: str
     SUPABASE_KEY: str
-
+    
 
     class Config:
         env_file = '../.env'
