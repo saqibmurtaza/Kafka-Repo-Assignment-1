@@ -1,4 +1,5 @@
 from .models import User, LoginInfo
+from .database import supabase
 import logging, secrets
 
 logging.basicConfig(level=logging.INFO)
@@ -9,9 +10,17 @@ def generate_api_key():
 
 class MockSupabaseClient():
     def __init__(self):
-        self.users= [] # list of dicts/objects will save in it
+        self.users = self.load_users_from_db()
         self.auth= MockSupabaseAuth(self.users)
-   
+
+    def load_users_from_db(self):
+        response = supabase.table('mock_user').select('*').execute()  # Execute the query
+        # Check for errors in the response object
+        if hasattr(response, 'error') and response.error:  # <---- Check for error attribute
+            logging.error(f"Failed to load users: {response.error}")  # <---- Log error
+            return []  # Return empty list on error
+        return response.data if hasattr(response, 'data') else []  # <---- Access data directly
+    
     def table(self, name: str):
         if name == 'mock_user':
             return MockTable(self.users)
@@ -39,18 +48,32 @@ class MockSupabaseAuth():
         email = payload.email
         password = payload.password
 
+        logging.info(f"Attempting login with email: {email} and password: {password}")
+        logging.info(f"Current users: {self.users}")
+
         for my_user in self.users:
             if my_user["email"] == email and my_user["password"] == password:
             # Extract Data from self.users
                 user_data= {
                     "user": User(
+                            id=my_user['id'],
+                            username=my_user['username'],
                             email=my_user["email"],
                             password=my_user["password"],
                             api_key=my_user['api_key']
                                 )
                 }
+                logging.error(f'USER_IN_LOGIN:{user_data}')
                 return user_data
-        return {"error": "CREDENTIALS_MISMATCHED", "status": "FAILED"}
+        return {
+            "error": "CREDENTIALS_MISMATCHED", 
+            "status": "FAILED",
+            "details": {
+                "provided_email": email,
+                "provided_password": password
+            }
+        }
+
 
     def user_profile(self, api_key: str):
         # Find user by API key
@@ -62,7 +85,7 @@ class MockSupabaseAuth():
 
 class MockTable:
     def __init__(self, data):
-        self._data = data  # Use a private variable to hold the data <---
+        self._data = data  # Use a private variable to hold the data
         self.filtered_data = data  # Initialize filtered data to be the same as input data
 
     @property

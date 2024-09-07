@@ -6,6 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Real User model
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str
@@ -25,11 +26,11 @@ class MockUser(SQLModel, table=True):
     source: str = Field(default="mock")
 
 class NotifyUser(BaseModel):
+    action: str
     id: Optional[int]=None
     username: str
     email: str
     password: str
-    action: str = "Signup"
     api_key: Optional[str] = None
 
 class UserInfo(BaseModel):

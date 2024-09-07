@@ -137,24 +137,46 @@ async def register_user(
 async def login(
                 payload: LoginInfo,
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
-                client: MockSupabaseClient = Depends(get_client)):
-   
+                client: Union[MockSupabaseClient, Client] = Depends(get_client)):
+    
+    logging.info(f"Received login payload: {payload}")
     response = client.auth.login(payload)
-    user_data = response.get("user")
+    # Check if login was successful
+    if "error" in response:
+        logging.error(f'Login failed: {response["error"]}')
+        raise HTTPException(status_code=400, detail=response["error"])
 
-    message_payload = LoginInfo(
-        email=payload.email,
-        password=payload.password,
+    user_data = response.get("user")
+    
+    # Ensure user_data is not None
+    if user_data is None:
+        logging.error("User data is None")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    # Safely access username and api_key
+
+    extracted_id= user_data.id
+    username = user_data.username
+    generated_apikey = user_data.api_key
+    logging.error(f'RESPONSE_IN_LOGIN: {response}')
+
+    message_payload = NotifyUser(
+        action= 'Login',
+        id= extracted_id,
+        username= username,
+        email= payload.email,
+        password= payload.password,
+        api_key= generated_apikey
         )
 
-    # await notify_user_actions(message_payload, producer)
+    await notify_user_actions(message_payload, producer)
     return message_payload
 
 @app.get("/user/profile")
 async def get_user_profile(
         api_key: str = Header(..., alias="apikey"),  # Match the alias to Kong "apikey"
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
-        client: MockSupabaseClient =Depends(get_client)
+        client: Union[MockSupabaseClient, Client] = Depends(get_client)
         ):
    
     response = client.auth.user_profile(api_key)

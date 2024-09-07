@@ -17,4 +17,3 @@ def get_session():
 def create_db_tables():
     SQLModel.metadata.create_all(engine, tables=[User.__table__, MockUser.__table__])
 
-
