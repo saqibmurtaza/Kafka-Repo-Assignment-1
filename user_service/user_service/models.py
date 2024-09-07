@@ -41,10 +41,6 @@ class UserInfo(BaseModel):
 class LoginInfo(BaseModel):
     email: str
     password: str
-   
-class UserListResponse(BaseModel):
-    username: str
-    email: str
 
 class UserMessage(BaseModel):
     action: str

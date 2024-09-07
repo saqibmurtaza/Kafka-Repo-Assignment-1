@@ -14,12 +14,13 @@ class MockSupabaseClient():
         self.auth= MockSupabaseAuth(self.users)
 
     def load_users_from_db(self):
-        response = supabase.table('mock_user').select('*').execute()  # Execute the query
+        # DB-QUERY
+        response = supabase.table('mock_user').select('*').execute()
         # Check for errors in the response object
-        if hasattr(response, 'error') and response.error:  # <---- Check for error attribute
-            logging.error(f"Failed to load users: {response.error}")  # <---- Log error
+        if hasattr(response, 'error') and response.error:
+            logging.error(f"Failed to load users: {response.error}")
             return []  # Return empty list on error
-        return response.data if hasattr(response, 'data') else []  # <---- Access data directly
+        return response.data if hasattr(response, 'data') else [] 
     
     def table(self, name: str):
         if name == 'mock_user':
@@ -74,14 +75,17 @@ class MockSupabaseAuth():
             }
         }
 
-
     def user_profile(self, api_key: str):
         # Find user by API key
         for user in self.users:
             if user.get("api_key") == api_key:
                 return {"user": User(**user), "status": "success"}
         return {"error": "User Profile not found", "status": "failed"}
-
+    
+    def get_users_list(self, user_api_key):
+            response= supabase.table('mock_user').select('*').eq('api_key', user_api_key).execute()
+            users_list= response.data
+            return users_list 
 
 class MockTable:
     def __init__(self, data):

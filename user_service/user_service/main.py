@@ -5,10 +5,10 @@ from supabase import Client
 from typing import Union
 from contextlib import asynccontextmanager
 from .dependencies import get_mock_supabase_client, get_supabase_cleint, create_consumer_and_key
-from .database import create_db_tables, get_session
+from .database import create_db_tables, get_session, supabase
 from .mock_user import MockSupabaseClient
 from .producer import get_kafka_producer
-from .models import User, MockUser, UserInfo, UserListResponse, UserMessage, NotifyUser, LoginInfo
+from .models import User, MockUser, UserInfo, UserMessage, NotifyUser, LoginInfo
 from .settings import settings
 from .notify_logic import notify_user_profile, notify_user_actions
 from aiokafka import AIOKafkaProducer
@@ -139,7 +139,6 @@ async def login(
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: Union[MockSupabaseClient, Client] = Depends(get_client)):
     
-    logging.info(f"Received login payload: {payload}")
     response = client.auth.login(payload)
     # Check if login was successful
     if "error" in response:
@@ -150,15 +149,14 @@ async def login(
     
     # Ensure user_data is not None
     if user_data is None:
-        logging.error("User data is None")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logging.error("USER_DATA_IS_NONE")
+        raise HTTPException(status_code=500, detail="INTERNAL_SERVER_ERROR")
 
     # Safely access username and api_key
 
     extracted_id= user_data.id
     username = user_data.username
     generated_apikey = user_data.api_key
-    logging.error(f'RESPONSE_IN_LOGIN: {response}')
 
     message_payload = NotifyUser(
         action= 'Login',
@@ -194,15 +192,33 @@ async def get_user_profile(
     return user_message
 
 
-@app.get("/user", response_model=list[UserListResponse])
-def get_users_list(client: MockSupabaseClient = Depends(get_client)):
-    users_list = client.users
-    filtered_users = [{"username": user["username"], "email": user["email"]} for user in users_list]
-
-
-    logging.info(f'List of Registered Users : {filtered_users}')
-    return filtered_users
-
+@app.get("/user", response_model=list[MockUser])
+def get_users_list(
+    user_api_key: str = Header(..., alias='apikey'),
+    client: Union[MockSupabaseClient, Client] = Depends(get_client)
+    ):
+    
+    if isinstance(client, MockSupabaseClient):
+        try:
+            mock_users_list= client.auth.get_users_list(user_api_key)
+            if not mock_users_list:
+                raise HTTPException(status_code=403, detail='API_KEY_NOT_MATCHED')
+            logging.info(f'LIST_OF_REGISTERED_USERS : {mock_users_list}')
+            return mock_users_list
+        except Exception as e:
+            error_message=str(e)
+            logging.error(f'***ERROR : {str(e)}')
+            raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
+        
+    else:
+        try:
+            response = client.table('user').select('*').execute()
+            real_users_list = response.data
+            return real_users_list
+        except Exception as e:
+            error_message=str(e)
+            logging.error(f'***ERROR : {error_message}')
+            raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
 
 origins = [
     "http://localhost:8000",
