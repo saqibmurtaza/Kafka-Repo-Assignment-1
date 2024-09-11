@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
+    SUPABASE_DB_URL:str
 
     class Config:
         env_file = '../.env'

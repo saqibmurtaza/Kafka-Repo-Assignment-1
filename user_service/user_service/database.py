@@ -8,7 +8,8 @@ supabase: Client= create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 connection_string =str(settings.SUPABASE_DB_URL.
                        replace('postgresql', 'postgresql+psycopg'))
-engine = create_engine(connection_string, connect_args={"sslmode": "require"}, pool_recycle=300)
+engine = create_engine(connection_string, connect_args={"sslmode": "require"}, 
+                       pool_recycle=300)
 
 def get_session():
     with Session(engine) as session:

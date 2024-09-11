@@ -11,15 +11,21 @@ message NotificationPayloadProto {
 }
 
 message OrderProto {
-    int32 id = 1;
+    string id = 1;
     string item_name = 2;
     int32 quantity = 3;
     float price = 4;
     string status = 5;
     string user_email= 6;
     string user_phone = 7;
+    string source = 8;
+    string api_key = 9;
 }
 
 //Note: Protoc command
 //F:\kafka_project>
 // protoc --python_out=order_service/order_service order_service/order_service/order.proto
+
+//Run the command inside the order_service container
+//protoc --python_out=. Order.proto (dot for current dir)
+//This will generate order_pb2 in container

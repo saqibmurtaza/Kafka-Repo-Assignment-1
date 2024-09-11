@@ -1,6 +1,6 @@
 from aiokafka import AIOKafkaProducer
 from .settings import settings
-from .model import Order
+from .models import Order
 import json, logging
 
 logging.basicConfig(level=logging.INFO)

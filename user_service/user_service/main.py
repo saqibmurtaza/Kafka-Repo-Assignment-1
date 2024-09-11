@@ -5,7 +5,7 @@ from supabase import Client
 from typing import Union
 from contextlib import asynccontextmanager
 from .dependencies import get_mock_supabase_client, get_supabase_cleint, create_consumer_and_key
-from .database import create_db_tables, get_session, supabase
+from .database import create_db_tables, get_session
 from .mock_user import MockSupabaseClient
 from .producer import get_kafka_producer
 from .models import User, MockUser, UserInfo, UserMessage, NotifyUser, LoginInfo
@@ -83,6 +83,12 @@ async def register_user(
             raise HTTPException(status_code=400, detail="EMAIL_ALREADY_IN_USE")
 
         #  Determine user data source
+        '''
+        following block of code prepares the user's data for further processing 
+        (e.g., registration) and ensures that the source of the user (mock or real) 
+        is recorded, which helps maintain clarity and separation between 
+        test and production data.
+        '''
         user_data = {
             "username": payload.username,
             "email": payload.email,
@@ -108,7 +114,7 @@ async def register_user(
         # Create consumer and key in Kong
         if registered_user and generated_apikey:
             # Pass the username and generated API key to create_consumer_and_key
-            kong_response = create_consumer_and_key(registered_user.username, 
+            kong_response = create_consumer_and_key(registered_user.username,
                                                     generated_apikey)
             logging.info(f"KONG_CONSUMER_AND_KEY_RESPONSE: {kong_response}")
         else:

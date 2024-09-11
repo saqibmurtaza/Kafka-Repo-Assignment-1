@@ -1,19 +1,30 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
+from sqlmodel import Session
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Union
+from supabase import Client
 from aiokafka import AIOKafkaProducer
-from .notification import send_order_status_notification
+from .notify_logic import send_order_status_notification
 from .producer import get_kafka_producer
-from .dependencies import get_mock_order_service, get_real_order_service
-from .model import Order, OrderCreated
+from .mock_order_service import MockOrderService, generate_unique_id, generate_api_key
+from .database import create_db_tables, get_session
+from .dependencies import get_mock_order_service, get_real_order_service, create_consumer_and_api_key
+from .models import Order, OrderCreated, MockOrder
 from .settings import settings
-import logging
+import logging, asyncio, json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.info('CREATING_TABLES...................................')
+    try:
+        create_db_tables()
+        logging.info(f'\nTABLES_CREATED_SUCCESSFULLY\n')
+    except Exception as e:
+        logging.error(f'\nAN_ERROR_OCCURED : {str(e)}...............\n')
+    await asyncio.sleep(5)
     logging.info(f"""
     !**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!
     WELCOME TO ONLINE SHOPPING MALL!
@@ -37,10 +48,16 @@ app = FastAPI(
     ]
 )
 
-def get_order_service():
+
+def get_client() -> Union[MockOrderService, Client]:
     if settings.MOCK_SUPABASE:
         return get_mock_order_service()
     return get_real_order_service()
+
+# Generate unique id and api_key
+generated_id = generate_unique_id()
+generated_apikey = generate_api_key()
+
 
 @app.get("/")
 def read_root():
@@ -48,75 +65,179 @@ def read_root():
 
 @app.post("/orders", response_model=Order)
 async def create_order(
-    order: OrderCreated,
+    payload: OrderCreated,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service = Depends(get_order_service)
-):
-    order_data = order.model_dump()  # Convert the order instance into a dictionary
-    created_order = service.create_order(order_data)
-    logging.info(f'ORDER_CREATED : {created_order}')
+    client: Union[MockOrderService, Client] = Depends(get_client),
+    session: Session = Depends(get_session)
+): 
+    if isinstance(client, MockOrderService):
+        model = MockOrder
+    else:
+        model = Order
+    try:
+        order_info = {
+            "id": generated_id,
+            "item_name": payload.item_name,
+            "quantity": payload.quantity,
+            "price": payload.price,
+            "status": "pending",
+            "user_email": payload.user_email,
+            "user_phone": payload.user_phone,
+            "api_key": generated_apikey,
+            "source": "mock" if isinstance(client, MockOrderService) else "real"
+        }
 
-    order_status_payload = OrderCreated(
-        item_name=created_order.item_name,
-        quantity=created_order.quantity,
-        price=created_order.price,
-        status=created_order.status,
-        user_email=created_order.user_email,
-        user_phone=created_order.user_phone
-    )
-    await send_order_status_notification(order_status_payload, producer)
+        # Execute order creation and receive response
+        response = client.auth.create_order(order_info)
 
-    return created_order
+        # Check if response is a dictionary and properly formatted
+        if response and isinstance(response, dict):
+            created_order= Order(**response)
 
-@app.put("/orders/{order_id}", response_model=Order)
+            # Save order to the database
+            if response and isinstance(response, dict):
+                new_order = model(
+                    id=created_order.id,
+                    item_name=created_order.item_name,
+                    quantity=created_order.quantity,
+                    price=created_order.price,
+                    status=created_order.status,
+                    user_email=created_order.user_email,
+                    user_phone=created_order.user_phone,
+                    source=created_order.source,
+                    api_key=created_order.api_key
+                )
+            session.add(new_order)
+            session.commit()
+            
+            logging.info(f'ORDER_SAVED_SUCCESSFULLY_IN_DB : {new_order}')
+
+            await send_order_status_notification(new_order, producer)
+            logging.info(f'NEW_ORDER_CREATED_AND_SAVED: {new_order}')
+                        
+            return new_order
+        else:  
+            raise HTTPException(status_code=500, detail="FAILED_TO_CREATE_ORDER")  
+    
+    except Exception as e:  
+        logging.error(f'ERROR****:{str(e)}')  
+        raise HTTPException(status_code=500, detail=str(e))  # Return an error message  
+
+@app.put("/orders/{order_id}")
 async def update_order(
-    order_id: int,
-    order: OrderCreated,
+    order_id: str,
+    payload: OrderCreated,
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service = Depends(get_order_service)
+    client: Union[MockOrderService, Client] = Depends(get_client),
+    session: Session = Depends(get_session)
 ):
-    update_data = {k: v for k, v in order.model_dump().items() if k != 'id'}
-    updated_order = service.update_order(order_id, update_data)
-    logging.info(f'ORDER_UPDATED : {updated_order}')
-
-    if updated_order:
-        order_status_payload = OrderCreated(
-        item_name=updated_order.item_name,
-        quantity=updated_order.quantity,
-        price=updated_order.price,
-        status=updated_order.status,
-        user_email=updated_order.user_email,
-        user_phone=updated_order.user_phone
-    )
-        await send_order_status_notification(order_status_payload, producer)
-        return updated_order
+    if isinstance(client, MockOrderService):
+        model= MockOrder
     else:
-        raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
+        model= Order
+    try:
+        order_info = {
+            "id": order_id,
+            "item_name": payload.item_name,
+            "quantity": payload.quantity,
+            "price": payload.price,
+            "status": "pending",
+            "user_email": payload.user_email,
+            "user_phone": payload.user_phone,
+            "api_key": generated_apikey,
+            "source": "mock" if isinstance(client, MockOrderService) else "real"
+        }    
+        response = client.auth.update_order(order_id, order_info)
+        if response and isinstance(response, dict):
+            # Use unpacking if response matches Order fields
+            updated_order = Order(**response)
+            # Save order to the database
+            new_updated_order = model(**updated_order.dict())
 
-@app.delete("/orders/{order_id}", response_model=dict)
-async def delete_order(
-    order_id: int,
-    producer: AIOKafkaProducer = Depends(get_kafka_producer),
-    service = Depends(get_order_service)
-):
-    response = service.delete_order(order_id)
-    if response:
-        order_status_payload = OrderCreated(
-        item_name=response.item_name,
-        quantity=response.quantity,
-        price=response.price,
-        status=response.status,
-        user_email=response.user_email,
-        user_phone=response.user_phone
-    )
+            session.merge(new_updated_order)
+            session.commit()
 
-        logging.info(f'ORDER_DELETED : {response}')
-        return {"message": "ORDER_DELETED_SUCCESSFULLY"}
-    else:
+            logging.info(f'ORDER_UPDATED_AND_SAVED: {new_updated_order}')
+            
+            await send_order_status_notification(new_updated_order, producer)
+            
+            logging.info(
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                f'\nORDER_UPDATED__SAVED__AND_SEND_TO_NOTIFCATION_SERVICE\n:'
+                f'\n{new_updated_order}\n'
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                )
+            return new_updated_order
+
         raise HTTPException(status_code=404, detail="Order not found")
 
+    except Exception as e:
+        session.rollback()
+        logging.error(f'Error updating order: {str(e)}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get('/orders/{order_id}')
+def track_order(
+    order_id: str,
+    client: Union[MockOrderService, Client]= Depends(get_client)
+    ):
+    
+    tracked_order= client.auth.track_order(order_id)
+    logging.info(
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                f'\nTRACKED_ORDER\n:'
+                f'\n{tracked_order}\n'
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                )
+    return {f'\nTRACKED_RECORD : {tracked_order}\n'}
+
+@app.delete("/orders/{order_id}")
+async def delete_order(
+    order_id: str,
+    producer: AIOKafkaProducer = Depends(get_kafka_producer),
+    client: Union[MockOrderService, Client] = Depends(get_client),
+    session: Session= Depends(get_session)
+):
+    if isinstance(client, MockOrderService):
+        model= MockOrder
+    else:
+        model= Order
+    
+    response= client.auth.delete_order(order_id)
+    
+    if response and isinstance(response, dict):
+    # Create a model instance from the response
+        order_instance = model(**response)
+        
+        # Fetch the existing order from the session using the order ID
+        existing_instance = session.get(model, order_instance.id)
+        if existing_instance:
+            session.delete(existing_instance)
+            session.commit()
+            
+            logging.info(
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                f'\nMENTIONED_ORDER_DELETED_SUCCESSFULLY\n:'
+                f'\n{existing_instance}\n'
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+            )
+
+
+            return {
+                f'\nDELETED_RECORD : {existing_instance}\n'
+            }
+        else:
+            raise HTTPException(status_code=404, detail="RECORD_NOT_FOUND")
+
 @app.get("/orders", response_model=List[Order])
-async def get_orders_list(service = Depends(get_order_service)):
-    order_list = service.orders_list()
-    logging.info(f'ORDER_LIST : {order_list}')
-    return service.orders_list()
+async def get_orders_list(client: Union[MockOrderService, Client] = Depends(get_client)):
+    
+    orders_list = client.auth.get_orders_list()
+    # Convert the orders list to a JSON string with pretty formatting
+    formatted_json = json.dumps(orders_list, indent=4)
+    
+    logging.info(f'{formatted_json}')
+    # Return the formatted JSON as a response with appropriate headers
+    return Response(content=formatted_json, media_type="application/json")
+    

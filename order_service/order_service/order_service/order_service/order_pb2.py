@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'order_service/order_service/order.proto\x12\x05order\"d\n\x18NotificationPayloadProto\x12\x10\n\x08order_id\x18\x01 \x01(\x05\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x12\n\nuser_email\x18\x03 \x01(\t\x12\x12\n\nuser_phone\x18\x04 \x01(\t\"\x84\x01\n\nOrderProto\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x11\n\titem_name\x18\x02 \x01(\t\x12\x10\n\x08quantity\x18\x03 \x01(\x05\x12\r\n\x05price\x18\x04 \x01(\x02\x12\x0e\n\x06status\x18\x05 \x01(\t\x12\x12\n\nuser_email\x18\x06 \x01(\t\x12\x12\n\nuser_phone\x18\x07 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'order_service/order_service/order.proto\x12\x05order\"d\n\x18NotificationPayloadProto\x12\x10\n\x08order_id\x18\x01 \x01(\x05\x12\x0e\n\x06status\x18\x02 \x01(\t\x12\x12\n\nuser_email\x18\x03 \x01(\t\x12\x12\n\nuser_phone\x18\x04 \x01(\t\"\xa5\x01\n\nOrderProto\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\titem_name\x18\x02 \x01(\t\x12\x10\n\x08quantity\x18\x03 \x01(\x05\x12\r\n\x05price\x18\x04 \x01(\x02\x12\x0e\n\x06status\x18\x05 \x01(\t\x12\x12\n\nuser_email\x18\x06 \x01(\t\x12\x12\n\nuser_phone\x18\x07 \x01(\t\x12\x0e\n\x06source\x18\x08 \x01(\t\x12\x0f\n\x07\x61pi_key\x18\t \x01(\tb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,5 +34,5 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_NOTIFICATIONPAYLOADPROTO']._serialized_start=50
   _globals['_NOTIFICATIONPAYLOADPROTO']._serialized_end=150
   _globals['_ORDERPROTO']._serialized_start=153
-  _globals['_ORDERPROTO']._serialized_end=285
+  _globals['_ORDERPROTO']._serialized_end=318
 # @@protoc_insertion_point(module_scope)
