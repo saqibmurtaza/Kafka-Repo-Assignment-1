@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Response
+from fastapi import FastAPI, Depends, HTTPException, Response, Header
 from sqlmodel import Session
 from contextlib import asynccontextmanager
 from typing import List, Union
@@ -6,10 +6,11 @@ from supabase import Client
 from aiokafka import AIOKafkaProducer
 from .notify_logic import send_order_status_notification
 from .producer import get_kafka_producer
-from .mock_order_service import MockOrderService, generate_unique_id, generate_api_key
+from .mock_order import MockOrderService, generate_unique_id, generate_api_key
 from .database import create_db_tables, get_session
 from .dependencies import get_mock_order_service, get_real_order_service, create_consumer_and_api_key
 from .models import Order, OrderCreated, MockOrder
+from .validation_logic import validate_api_key
 from .settings import settings
 import logging, asyncio, json
 
@@ -48,7 +49,6 @@ app = FastAPI(
     ]
 )
 
-
 def get_client() -> Union[MockOrderService, Client]:
     if settings.MOCK_SUPABASE:
         return get_mock_order_service()
@@ -57,7 +57,6 @@ def get_client() -> Union[MockOrderService, Client]:
 # Generate unique id and api_key
 generated_id = generate_unique_id()
 generated_apikey = generate_api_key()
-
 
 @app.get("/")
 def read_root():
@@ -69,7 +68,7 @@ async def create_order(
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     client: Union[MockOrderService, Client] = Depends(get_client),
     session: Session = Depends(get_session)
-): 
+    ): 
     if isinstance(client, MockOrderService):
         model = MockOrder
     else:
@@ -111,31 +110,36 @@ async def create_order(
             session.commit()
             
             logging.info(f'ORDER_SAVED_SUCCESSFULLY_IN_DB : {new_order}')
-
-            await send_order_status_notification(new_order, producer)
-            logging.info(f'NEW_ORDER_CREATED_AND_SAVED: {new_order}')
-                        
-            return new_order
         else:  
-            raise HTTPException(status_code=500, detail="FAILED_TO_CREATE_ORDER")  
+            raise HTTPException(status_code=500, detail="FAILED_TO_CREATE_ORDER")
+
+        await send_order_status_notification(new_order, producer)
+        logging.info(f'NEW_ORDER_CREATED_AND_SAVED: {new_order}')
     
     except Exception as e:  
         logging.error(f'ERROR****:{str(e)}')  
         raise HTTPException(status_code=500, detail=str(e))  # Return an error message  
-
+                
+    return new_order
+    
+    
 @app.put("/orders/{order_id}")
 async def update_order(
     order_id: str,
     payload: OrderCreated,
+    api_key: str = Header(..., alias="apikey"),
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     client: Union[MockOrderService, Client] = Depends(get_client),
     session: Session = Depends(get_session)
-):
+    ):
     if isinstance(client, MockOrderService):
         model= MockOrder
     else:
         model= Order
     try:
+        user= validate_api_key(api_key)
+        fetched_api_key = user.get('api_key')  # Fetch API key from user_info
+        
         order_info = {
             "id": order_id,
             "item_name": payload.item_name,
@@ -144,7 +148,7 @@ async def update_order(
             "status": "pending",
             "user_email": payload.user_email,
             "user_phone": payload.user_phone,
-            "api_key": generated_apikey,
+            "api_key": fetched_api_key,
             "source": "mock" if isinstance(client, MockOrderService) else "real"
         }    
         response = client.auth.update_order(order_id, order_info)
@@ -156,17 +160,14 @@ async def update_order(
 
             session.merge(new_updated_order)
             session.commit()
-
-            logging.info(f'ORDER_UPDATED_AND_SAVED: {new_updated_order}')
-            
-            await send_order_status_notification(new_updated_order, producer)
-            
             logging.info(
                 f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
                 f'\nORDER_UPDATED__SAVED__AND_SEND_TO_NOTIFCATION_SERVICE\n:'
                 f'\n{new_updated_order}\n'
                 f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
                 )
+            
+            await send_order_status_notification(new_updated_order, producer)
             return new_updated_order
 
         raise HTTPException(status_code=404, detail="Order not found")
@@ -190,7 +191,7 @@ def track_order(
                 f'\n{tracked_order}\n'
                 f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
                 )
-    return {f'\nTRACKED_RECORD : {tracked_order}\n'}
+    return {f'TRACKED_RECORD : {tracked_order}\n'}
 
 @app.delete("/orders/{order_id}")
 async def delete_order(
@@ -222,16 +223,16 @@ async def delete_order(
                 f'\n{existing_instance}\n'
                 f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
             )
-
-
             return {
-                f'\nDELETED_RECORD : {existing_instance}\n'
+                f'DELETED_RECORD : {existing_instance}'
             }
         else:
             raise HTTPException(status_code=404, detail="RECORD_NOT_FOUND")
 
 @app.get("/orders", response_model=List[Order])
-async def get_orders_list(client: Union[MockOrderService, Client] = Depends(get_client)):
+async def get_orders_list(
+    producer: AIOKafkaProducer=Depends(get_kafka_producer),
+    client: Union[MockOrderService, Client] = Depends(get_client)):
     
     orders_list = client.auth.get_orders_list()
     # Convert the orders list to a JSON string with pretty formatting
@@ -239,5 +240,6 @@ async def get_orders_list(client: Union[MockOrderService, Client] = Depends(get_
     
     logging.info(f'{formatted_json}')
     # Return the formatted JSON as a response with appropriate headers
+    await send_order_status_notification(orders_list, producer)
     return Response(content=formatted_json, media_type="application/json")
     
