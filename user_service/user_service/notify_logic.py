@@ -13,27 +13,25 @@ async def notify_user_actions(
         topic= settings.TOPIC_USER_EVENTS
     ):
     await producer.start()
-    try:
-        payload_dict = {
-            "id": payload.id,
-            "username": payload.username,
-            "email": payload.email,
-            "password": payload.password,
-            "api_key": payload.api_key,
-            "action": payload.action
+    # Prepary Dict before serialization to string
+    user_data = {
+            "action": payload.get('action'),
+            "id": payload.get('id'),
+            "username": payload.get('username'),
+            "email": payload.get('email'),
+            "password": payload.get('password'),
+            "source": "mock"
         }
-        message = json.dumps(payload_dict) #Python object/dict to JSON_string
+
+    try:
+        message = json.dumps(user_data) #json.dumps to JSON_string
         await producer.send_and_wait(topic, message.encode('utf-8'))
         logging.info(
-            f"\n=========================================================\n"
+            f"\n!****!****!****!****!****!****!****!****!****!****!****!\n"
             f"USER_ACTION_DETAILS_SEND_TO_NOTIFICATION_SERVICE:\n"
-            f"ACTION: {payload.action}\n"
-            f"USER_DB_ID: {payload.id}\n"
-            f"USERNAME: {payload.username}\n"
-            f"USER_EMAIL: {payload.email}\n"
-            f"API_KEY: FIND_YOUR_ API_KEY_IN_YOUR_REGISTERED_EMAIL\n"
-            f"MESSAGE: USER_SUCCESSFULLY: !*!*!*{payload.action}\n"
-            f"=========================================================\n"
+            f"DETAILS\n"
+            f"{message}\n"
+            f"\n!****!****!****!****!****!****!****!****!****!****!****!\n"
         )
     finally:
         await producer.stop()
@@ -48,21 +46,27 @@ async def notify_user_profile(
     await producer.start()
     try:
         payload_dict = {
-            "username": payload.user.username,
-            "email": payload.user.email,
-            "password": payload.user.password,
-            "action": payload.action
+            "id": payload.id,
+            "username": payload.username,
+            "email": payload.email,
+            "password": payload.password,
+            "api_key": payload.api_key,
+            "source": payload.source
+            
         }
         message = json.dumps(payload_dict)  # Convert to JSON string
         await producer.send_and_wait(topic, message.encode('utf-8'))
         logging.info(
-            f"\n=========================================================================\n"
-            f"\nUSER_PROFILE_NOTIFICATION_SEND_TO_NOTIFICATION_SERVICE:\n"
-            f"\nUSERNAME: {payload_dict.get('username')}\n" 
+            f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
+            f"\nUSER_PROFILE_NOTIFICATION_SUCCESSFULLY_SENT_TO_NOTIFICATION_SERVICE:\n"
+            f"\nUSER_ID: {payload_dict.get('id')}\n" 
+            f"USERNAME: {payload_dict.get('username')}\n" 
             f"USER_EMAIL: {payload_dict.get('email')}\n"
-            f"PASSWORD: FIND_YOUR_ PASSWORD_&\nAPI_KEY_IN_YOUR_REGISTERED_EMAIL\n"  
-            f"ACTION: {payload_dict.get('action')}\n"
-            f"\n=========================================================================\n"
+            f"PASSWORD: FIND_YOUR_ PASSWORD_& API_KEY_IN_YOUR_REGISTERED_EMAIL\n"  
+            f"AUTH_KEY: {payload_dict.get('api_key')}\n"
+            f"SOURCE: {payload_dict.get('source')}\n"
+            f"ACTION: get_user_profile\n"
+            f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
         )
     finally:
         await producer.stop()

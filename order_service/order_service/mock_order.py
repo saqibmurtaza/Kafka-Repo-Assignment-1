@@ -26,7 +26,6 @@ class MockOrderAuth():
 
     def create_order(self, order_data):
 
-        # Query Supabase for an existing order with the given ID  
         existing_order_response = supabase.from_('mockorder').select().eq('id', order_data['id']).execute()
     
         # Convert to string

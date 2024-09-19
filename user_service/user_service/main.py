@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from supabase import Client
 from typing import Union
 from contextlib import asynccontextmanager
-from .dependencies import get_mock_supabase_client, get_supabase_cleint, create_consumer_and_key
+from .dependencies import get_mock_supabase_client, get_supabase_cleint, create_consumer_and_key, check_kong_consumer
 from .database import create_db_tables, get_session
 from .mock_user import MockSupabaseClient
 from .producer import get_kafka_producer
@@ -12,7 +12,7 @@ from .models import User, MockUser, UserInfo, UserMessage, NotifyUser, LoginInfo
 from .settings import settings
 from .notify_logic import notify_user_profile, notify_user_actions
 from aiokafka import AIOKafkaProducer
-import logging
+import logging, asyncio, json
 
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.info('CREATING_DB_TABLES..............................')
+    try:
+        create_db_tables()
+        logging.info(f'\nTABLES_CREATED_SUCCESSFULLY\n')
+    except Exception as e:
+        logging.error(f'\nAN_ERROR_OCCURED : {str(e)}...............\n')
+    await asyncio.sleep(5)
     logging.info(f"""
     !**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!
     WELCOME TO ONLINE SHOPPING MALL!
@@ -31,7 +37,6 @@ async def lifespan(app: FastAPI):
     Happy shopping!
     !**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!**!
     """)
-    create_db_tables()
     yield
     logging.info(f"THANK YOU FOR VISITING OUR ONLINE SHOPPING MALL. WE HOPE TO SEE YOU AGAIN SOON!")
 
@@ -57,160 +62,245 @@ def get_client() -> Union[MockSupabaseClient, Client]:
 @app.get("/")
 def read_root():
     return {"message": "User_Service"}
-
-
+   
 @app.post("/user/signup", response_model=User)
 async def register_user(
-            payload: UserInfo,
-            producer: AIOKafkaProducer = Depends(get_kafka_producer),
-            client: Union[MockSupabaseClient, Client] = Depends(get_client),
-            session: Session = Depends(get_session)
-            ):
-       
-    # Determine the correct table name and model based on the client type
+        payload: UserInfo,
+        producer: AIOKafkaProducer = Depends(get_kafka_producer),
+        client: Union[MockSupabaseClient, Client] = Depends(get_client),
+        session: Session = Depends(get_session)
+    ):
+    
     if isinstance(client, MockSupabaseClient):
-        table_name = 'mock_user'
         model = MockUser
     else:
-        table_name = 'user'
         model = User
     
-  # Check if user already exists
-    existing_users = client.table(table_name).select('*').eq('email', payload.email).execute().data
-    
     try:
-        if existing_users:
-            raise HTTPException(status_code=400, detail="EMAIL_ALREADY_IN_USE")
-
-        #  Determine user data source
-        '''
-        following block of code prepares the user's data for further processing 
-        (e.g., registration) and ensures that the source of the user (mock or real) 
-        is recorded, which helps maintain clarity and separation between 
-        test and production data.
-        '''
+        # Prepare user's data for further processing
         user_data = {
             "username": payload.username,
             "email": payload.email,
             "password": payload.password,
-            "source": "mock" if isinstance(client, MockSupabaseClient) else "real"  # Set source based on client type
+            "source": "mock" if isinstance(client, MockSupabaseClient) else "real"
         }
-    
-        response = client.auth.sign_up(user_data)
-        registered_user = response.get('user')
-        generated_apikey = response.get('api_key')
 
-        # Save user to the database
+        # Attempt to sign up the user
+        response = client.auth.sign_up(user_data)
+        
+        if "USER_ALREADY_EXIST" in response.get("user", []) or response.get('user', []) == []:
+            logging.info(f"USER_WITH_EMAIL__{user_data['email']}__ALREADY_EXISTS")
+            raise HTTPException(status_code=409, detail="USER_ALREADY_EXISTS")
+
+        registered_user = response.get('user')
+        generated_id = registered_user.id
+        generated_apikey= registered_user.api_key
+        logging.info(f'NEW_API_KEY:{generated_apikey}')
+
+        apikey= None #initialize the key
+        # Before generating a new API key, check if the consumer already exists in Kong
+        try:
+            kong_response = check_kong_consumer(registered_user.email)
+
+            if kong_response:
+                logging.info(f"KONG_CONSUMER_ALREADY_EXISTS_FOR__{registered_user.email}")
+                apikey= kong_response.get('auth_key')
+                logging.info(f'EXISTIING_API_KEY**:{apikey}')
+           
+           # CREATE_KONG_CONSUMER_AND_KEY
+            else:
+                # No existing consumer, create a new one
+                apikey =  generated_apikey
+                kong_response = create_consumer_and_key(registered_user.email, apikey)
+                
+                if 'id' not in kong_response:
+                    logging.error(f"KONG_CONSUMER_REGISTRATION_FAILED_FOR__{registered_user.email}")
+                    raise HTTPException(status_code=500, detail="Kong consumer registration failed.")
+
+            logging.info(f"KONG_CONSUMER_CREATED_OR_FOUND_FOR__{registered_user.email}__APIKEY__{apikey}")
+
+        except Exception as kong_error:
+            logging.error(f"KONG_CONSUMER_REGISTRATION_ERROR: {kong_error}")
+            raise HTTPException(status_code=500, detail="Kong consumer registration failed.")
+
+        # Save the new user or update with the existing Kong API key
         new_user = model(
-            username=payload.username,
-            email=payload.email,
-            password=payload.password,
-            api_key=generated_apikey,
-            source=user_data["source"]  # Set the source in the database
+            id= generated_id,
+            username= payload.username,
+            email= payload.email,
+            password= payload.password,
+            api_key= apikey,  
+            source= user_data["source"]
         )
         session.add(new_user)
         session.commit()
 
-        # Create consumer and key in Kong
-        if registered_user and generated_apikey:
-            # Pass the username and generated API key to create_consumer_and_key
-            kong_response = create_consumer_and_key(registered_user.username,
-                                                    generated_apikey)
-            logging.info(f"KONG_CONSUMER_AND_KEY_RESPONSE: {kong_response}")
-        else:
-            logging.error("USER_REGISTRATION_FAILED_OR_API_KEY_WAS_NOT_GENERATED")
+        logging.info(f"USER_REGISTERED_IN_DB__{payload.email}__ID__{generated_id}")
 
+        # Notify the user about successful registration
+        user_event_payload = NotifyUser(
+            id= generated_id,
+            username= payload.username,
+            email= payload.email,
+            password= payload.password,
+            api_key= apikey,
+            action= 'Signup'
+        )
+
+        await notify_user_actions(user_event_payload, producer)
+        logging.info(f"NOTIFICATION_SENT_FOR_USER__{registered_user.email}__ID__{generated_id}")
+
+        # Final return if everything succeeds
+        return registered_user
+
+    except HTTPException as e:
+        logging.error(f"HTTP_EXCEPTION_OCCURRED: {e.detail}")
+        raise e
 
     except Exception as e:
         session.rollback()
-        error_message = str(e)
-        logging.error(f'ERROR****:{str(e)}')
-        raise HTTPException(status_code=400, detail=f'NATURE_OF_ERROR:{error_message}')
-   
-    user_event_payload= NotifyUser(
-        username= payload.username,
-        email= payload.email,
-        password= payload.password,
-        api_key= generated_apikey,
-        action = 'Signup'
-    )
-    logging.info(f'REGISTERED_USER:{registered_user}')
-    # USER_SIGNUP_NOTIFICATION
-    await notify_user_actions(user_event_payload, producer)
-    return registered_user
+        error_message= str(e)
+        logging.error(f"UNEXPECTED_ERROR: {e}")
+        raise HTTPException(status_code=500, detail=error_message)
+
 
 @app.post("/user/login")
 async def login(
                 payload: LoginInfo,
+                api_key: str = Header(..., alias='apikey'),
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: Union[MockSupabaseClient, Client] = Depends(get_client)):
     
     response = client.auth.login(payload)
-    # Check if login was successful
-    if "error" in response:
-        logging.error(f'Login failed: {response["error"]}')
-        raise HTTPException(status_code=400, detail=response["error"])
+    if "CREDENTIALS_MISMATCHED" in response:
+        logging.info(f'LOGIN_FAILED: {response}')
+        raise HTTPException(status_code=409, detail='CREDENTIALS_NOT_MATCHED')
 
-    user_data = response.get("user")
-    
-    # Ensure user_data is not None
-    if user_data is None:
-        logging.error("USER_DATA_IS_NONE")
-        raise HTTPException(status_code=500, detail="INTERNAL_SERVER_ERROR")
+    # Extract Data
+    user_data = {
+        'action': 'Login',
+        "id": response.get('id'),
+        "username": response.get('username'),
+        "email": response.get('email'),
+        "password": response.get('password'),
+        "api_key": response.get('api_key')
+    }
 
-    # Safely access username and api_key
+    # AUTHENTICATION
+    consumer_response= check_kong_consumer(user_data.get('email'))
+    logging.info(f'CONSUMER_RESPONSE:{consumer_response}')
 
-    extracted_id= user_data.id
-    username = user_data.username
-    generated_apikey = user_data.api_key
+    auth_key= consumer_response.get('auth_key')
+    logging.info(f'CONSUMER_AUTH_KEY: {auth_key}***')
 
-    message_payload = NotifyUser(
-        action= 'Login',
-        id= extracted_id,
-        username= username,
-        email= payload.email,
-        password= payload.password,
-        api_key= generated_apikey
-        )
+    if auth_key != api_key:
+        logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
+        raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
 
-    await notify_user_actions(message_payload, producer)
-    return message_payload
+    logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
 
-@app.get("/user/profile")
+    # Notify user action on successful authentication
+    await notify_user_actions(user_data, producer)
+
+    message = f'SUCCESSFULLY_LOGGED_IN_WITH__{user_data.get("email")}'
+    return {"message": message}
+
+@app.get("/user/profile", response_model=User)
 async def get_user_profile(
-        api_key: str = Header(..., alias="apikey"),  # Match the alias to Kong "apikey"
-        producer: AIOKafkaProducer = Depends(get_kafka_producer),
-        client: Union[MockSupabaseClient, Client] = Depends(get_client)
-        ):
-   
-    response = client.auth.user_profile(api_key)
-    if response.get("status") == "failed":
-        return {"error": response["error"], "status": "failed"}
-   
-    user = response.get("user")
-    if not user:
-        return {"error": "User profile not found", "status": "failed"}
+    email: str = Header(...),
+    user_api_key: str = Header(..., alias='apikey'),
+    producer: AIOKafkaProducer = Depends(get_kafka_producer),
+    client: Union[MockSupabaseClient, Client] = Depends(get_client)
+    ):
+    try:
+        # AUTHENTICATION
+        consumer_response= check_kong_consumer(email)
+        # Check if consumer_response is None
+        if consumer_response is None:
+            logging.error(f'NO_CONSUMER_FOUND_WITH_MENTIONED_EMAIL: {email}')
+            raise HTTPException(status_code=404, detail=f"No consumer found with email: {email}")
+    
+        auth_key= consumer_response.get('auth_key')
 
+        if auth_key != user_api_key:
+            logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
+            raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
 
-    user_message = UserMessage(action="get_user_profile", user=user)
-    await notify_user_profile(user_message, producer)
-   
-    return user_message
+        logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
 
+        if isinstance(client, MockSupabaseClient):
+            try:
+                mock_user_profile= client.auth.user_profile(user_api_key)
+                if not mock_user_profile:
+                    raise HTTPException(status_code=403, detail='API_KEY_NOT_MATCHED')
+                
+                formatted_json = json.dumps(mock_user_profile, indent=4)
+                logging.info(f'USER_PROFILE:{formatted_json}')
 
-@app.get("/user", response_model=list[MockUser])
+                # Prepare message for Notification
+                for my_user in mock_user_profile:
+                    user_data= my_user
+                    
+                    user_data= User(**user_data)
+                    
+                    user_message = UserMessage(action="get_user_profile", user=user_data)
+                    await notify_user_profile(user_data, producer)
+                    
+                    # Convert the Pydantic model to a dictionary before JSON serialization
+                    formatted_mssg_json= json.dumps(user_message.dict(), indent=4)
+                    return Response(content=formatted_mssg_json, media_type="application/json")
+        
+            except Exception as e:
+                error_message=str(e)
+                logging.error(f'***ERROR : {str(e)}')
+                raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
+            
+        else:
+            try:
+                response = client.table('user').select('*').execute()
+                real_user_profile = response.data
+                formatted_json = json.dumps(real_user_profile, indent=4)
+                return formatted_json
+            except Exception as e:
+                error_message=str(e)
+                logging.error(f'***ERROR : {error_message}')
+                raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
+    
+    except HTTPException as e:
+        raise e  # Re-raise HTTPException with the proper status code and message
+    
+    except Exception as e:
+        logging.error(f'An unexpected error occurred: {str(e)}')
+        raise HTTPException(status_code=500, detail="An internal server error occurred")
+
+@app.get("/user", response_model=list[User])
 def get_users_list(
+    email: str = Header(...),
     user_api_key: str = Header(..., alias='apikey'),
     client: Union[MockSupabaseClient, Client] = Depends(get_client)
     ):
+
+    # AUTHENTICATION
+    consumer_response= check_kong_consumer(email)
+    auth_key= consumer_response.get('auth_key')
+
+    if auth_key != user_api_key:
+        logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
+        raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
+
+    logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
+
     
     if isinstance(client, MockSupabaseClient):
         try:
-            mock_users_list= client.auth.get_users_list(user_api_key)
+            mock_users_list= client.auth.get_users_list()
             if not mock_users_list:
                 raise HTTPException(status_code=403, detail='API_KEY_NOT_MATCHED')
-            logging.info(f'LIST_OF_REGISTERED_USERS : {mock_users_list}')
-            return mock_users_list
+            
+            formatted_json = json.dumps(mock_users_list, indent=4)
+            logging.info(f'LIST_OF_REGISTERED_USERS : {formatted_json}')
+            return Response(content=formatted_json, media_type="application/json")
+    
         except Exception as e:
             error_message=str(e)
             logging.error(f'***ERROR : {str(e)}')
@@ -220,11 +310,14 @@ def get_users_list(
         try:
             response = client.table('user').select('*').execute()
             real_users_list = response.data
-            return real_users_list
+            formatted_json = json.dumps(real_users_list, indent=4)
+            return formatted_json
         except Exception as e:
             error_message=str(e)
             logging.error(f'***ERROR : {error_message}')
             raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
+
+
 
 origins = [
     "http://localhost:8000",
