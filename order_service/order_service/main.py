@@ -9,10 +9,10 @@ from .producer import get_kafka_producer
 from .mock_order import MockOrderService, generate_unique_id, generate_api_key
 from .database import create_db_tables, get_session
 from .dependencies import get_mock_order_service, get_real_order_service, create_consumer_and_api_key
-from .models import Order, OrderCreated, MockOrder
+from .models import Order, OrderCreated, MockOrder, OrderStatusUpdate
 from .validation_logic import validate_api_key
 from .settings import settings
-import logging, asyncio, json
+import logging, asyncio, json, requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,10 +54,6 @@ def get_client() -> Union[MockOrderService, Client]:
         return get_mock_order_service()
     return get_real_order_service()
 
-# Generate unique id and api_key
-generated_id = generate_unique_id()
-generated_apikey = generate_api_key()
-
 @app.get("/")
 def read_root():
     return {"message": "Order Service for Saqib's online mart"}
@@ -74,55 +70,77 @@ async def create_order(
     else:
         model = Order
     try:
-        order_info = {
-            "id": generated_id,
-            "item_name": payload.item_name,
-            "quantity": payload.quantity,
-            "price": payload.price,
-            "status": "pending",
-            "user_email": payload.user_email,
-            "user_phone": payload.user_phone,
-            "api_key": generated_apikey,
-            "source": "mock" if isinstance(client, MockOrderService) else "real"
-        }
+        # convert to dict
+        order_dict= payload.dict()
+        
+        response = client.auth.create_order(order_dict)
 
-        # Execute order creation and receive response
-        response = client.auth.create_order(order_info)
-
-        # Check if response is a dictionary and properly formatted
+        # Check if response is dictionary and truthy
         if response and isinstance(response, dict):
             created_order= Order(**response)
 
-            # Save order to the database
-            if response and isinstance(response, dict):
-                new_order = model(
-                    id=created_order.id,
-                    item_name=created_order.item_name,
-                    quantity=created_order.quantity,
-                    price=created_order.price,
-                    status=created_order.status,
-                    user_email=created_order.user_email,
-                    user_phone=created_order.user_phone,
-                    source=created_order.source,
-                    api_key=created_order.api_key
-                )
+            # Save order to the database   
+            new_order = model(
+                id=created_order.id,
+                item_name=created_order.item_name,
+                quantity=created_order.quantity,
+                price=created_order.price,
+                status=created_order.status,
+                user_email=created_order.user_email,
+                user_phone=created_order.user_phone,
+                api_key=created_order.api_key
+            )
             session.add(new_order)
             session.commit()
             
-            logging.info(f'ORDER_SAVED_SUCCESSFULLY_IN_DB : {new_order}')
-        else:  
-            raise HTTPException(status_code=500, detail="FAILED_TO_CREATE_ORDER")
-
-        await send_order_status_notification(new_order, producer)
-        logging.info(f'NEW_ORDER_CREATED_AND_SAVED: {new_order}')
+            await send_order_status_notification(new_order, producer)
+            logging.info(
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+                f'NEW_ORDER_CREATED_AND_SAVED:\n'
+                f'{new_order}\n'
+                f'\n!****!****!****!****!****!****!****!****!****!****!****!****!\n')
+        else:
+            logging.info('RESPONSE_IS_EMPTY_OR_NOT_IN_DICT')
     
     except Exception as e:  
         logging.error(f'ERROR****:{str(e)}')  
-        raise HTTPException(status_code=500, detail=str(e))  # Return an error message  
+        raise HTTPException(status_code=500, detail=str(e))
                 
     return new_order
-    
-    
+
+# NOTE: following Endpoint used to change STATUS to "CONFIRMED" IN DB, when PAYMENT_DONE
+@app.post("/orders/order_status")
+async def update_order_status(
+    payload: OrderStatusUpdate,
+    client: Union[MockOrderService, Client] = Depends(get_client),
+    session: Session = Depends(get_session)):
+
+    if isinstance(client, MockOrderService):
+        model = MockOrder
+    else:
+        model = Order
+    try:
+        # Fetch the order from the database using the provided order_id
+        order = session.query(model).filter(model.id == payload.order_id).first()
+
+        # Check if order exists
+        if not order:
+            logger.error(f"Order {payload.order_id} not found.")
+            raise HTTPException(status_code=404, detail=f"Order {payload.order_id} not found.")
+
+        # Update the order's status
+        order.status = payload.status
+        session.add(order)
+        session.commit()
+
+        logger.info(f"Order {payload.order_id} updated to {payload.status}")
+        return {"message": f"Order {payload.order_id} updated to {payload.status}"}
+
+    except Exception as e:
+        logger.error(f"Failed to payload order {payload.order_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to payload order status")
+
+ 
 @app.put("/orders/{order_id}")
 async def update_order(
     order_id: str,
@@ -149,7 +167,7 @@ async def update_order(
             "user_email": payload.user_email,
             "user_phone": payload.user_phone,
             "api_key": fetched_api_key,
-            "source": "mock" if isinstance(client, MockOrderService) else "real"
+            # "source": "mock" if isinstance(client, MockOrderService) else "real"
         }    
         response = client.auth.update_order(order_id, order_info)
         if response and isinstance(response, dict):
@@ -242,4 +260,4 @@ async def get_orders_list(
     # Return the formatted JSON as a response with appropriate headers
     await send_order_status_notification(orders_list, producer)
     return Response(content=formatted_json, media_type="application/json")
-    
+

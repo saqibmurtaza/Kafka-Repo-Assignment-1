@@ -25,9 +25,11 @@ class MockOrderAuth():
         self.orders= order 
 
     def create_order(self, order_data):
+ 
+        generated_id= generate_unique_id()
+        generated_apikey= generate_api_key()
 
-        existing_order_response = supabase.from_('mockorder').select().eq('id', order_data['id']).execute()
-    
+        existing_order_response = supabase.from_('mockorder').select().eq('id', generated_id).execute()
         # Convert to string
         existing_order_str = existing_order_response.json()
         # Convert string to dictionary
@@ -37,20 +39,18 @@ class MockOrderAuth():
         if existing_order_dict.get('data'):  
             raise HTTPException(status_code=409, details='ORDER_ID_EXIST')  
         
-        # Create a new order and add it to the list
+        # Create a new order
         order_proto = OrderProto(
-            id=order_data['id'],
-            item_name=order_data['item_name'],
-            quantity=order_data['quantity'],
-            price=order_data['price'],
-            status=order_data['status'],
-            user_email=order_data['user_email'],
-            user_phone=order_data['user_phone'],
-            source=order_data['source'],
-            api_key=order_data['api_key']
+            id= generated_id,
+            item_name= order_data['item_name'],
+            quantity= order_data['quantity'],
+            price= order_data['price'],
+            status= 'pending',
+            user_email= order_data['user_email'],
+            user_phone= order_data['user_phone'],
+            api_key= generated_apikey
         )
-        self.orders.append(order_proto)
-    
+        self.orders.append(order_proto)    
         order_data_response = {  
             "id": order_proto.id,  
             "item_name": order_proto.item_name,  
@@ -58,11 +58,9 @@ class MockOrderAuth():
             "price": order_proto.price,  
             "status": order_proto.status,  
             "user_email": order_proto.user_email,  
-            "user_phone": order_proto.user_phone,  
-            "source": order_proto.source,  
+            "user_phone": order_proto.user_phone,
             "api_key": order_proto.api_key  
         }  
-
         return order_data_response
     
     def update_order(self, order_id: str, payload):

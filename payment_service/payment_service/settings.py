@@ -6,10 +6,14 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
-    TOPIC_PAYMENT_EVENTS: str
-    PAYFAST_MERCHANT_ID: str
-    PAYFAST_MERCHANT_KEY: str
-    PAYFAST_PASSPHRASE: str
+    TOPIC_ORDER_STATUS: str
+    CONSUMER_GROUP_PAYMENT_EVENTS: str
+    
+    MOCK_SUPABASE: bool = True
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_DB_URL:str
+
     STRIPE_API_KEY: str
 
     class Config:

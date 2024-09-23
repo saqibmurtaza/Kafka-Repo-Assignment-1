@@ -1,6 +1,6 @@
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
-from payment_service.settings import settings
+from .settings import settings
 import logging
 
 logging.basicConfig(level=logging.INFO)

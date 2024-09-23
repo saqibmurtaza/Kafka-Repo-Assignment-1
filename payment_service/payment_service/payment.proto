@@ -3,8 +3,17 @@ syntax = "proto3";
 package payment;
 
 message PaymentNotificationProto {
-    int32 order_id = 1;
+    string order_id = 1;
     float amount = 2;
     string currency = 3;
     string payment_method = 4;
 }
+
+
+//Note: Protoc command
+//F:\kafka_project>
+// protoc --python_out=payment_service/payment_service payment_service/payment_service/order.proto
+
+//Run the command inside the payment_service container
+//protoc --python_out=. payment.proto (dot for current dir)
+//This will generate order_pb2 in container

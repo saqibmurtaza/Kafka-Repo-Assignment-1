@@ -8,10 +8,14 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_ORDER_STATUS: str
+    TOPIC_PAYMENT_EVENTS: str
+    
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_DB_URL:str
+
+    PAYMENT_SERVICE_URL: str
 
     class Config:
         env_file = '../.env'

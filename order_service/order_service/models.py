@@ -11,7 +11,7 @@ class Order(SQLModel, table=True):
     user_email: str
     user_phone: str
     api_key: str= None
-    source: str
+
 
 class MockOrder(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
@@ -22,7 +22,6 @@ class MockOrder(SQLModel, table=True):
     user_email: str
     user_phone: str
     api_key: str= None
-    source: str
 
 class OrderCreated(BaseModel):
     item_name: str
@@ -32,6 +31,10 @@ class OrderCreated(BaseModel):
     user_email: str
     user_phone: str
     api_key: str= None
+
+class OrderStatusUpdate(BaseModel):
+    order_id: str 
+    status: str
 
 class MockTable:
     def __init__(self, data):
@@ -55,6 +58,15 @@ class MockTable:
     def execute(self):
         return self
 
+
+# class OrderStatus:
+#     PENDING = "pending"
+#     CONFIRMED = "confirmed"
+#     PROCESSING = "processing"
+#     SHIPPED = "shipped"
+#     DELIVERED = "delivered"
+#     CANCELED = "canceled"
+#     REFUNDED = "refunded"
 
 # ORDER_STATUS
 # PENDING

@@ -173,20 +173,20 @@ services:
     networks:
       - kong-net
   
-  # payment_service:
-  #   build:
-  #     context: ./payment_service
-  #     dockerfile: Dockerfile.pay
-  #   volumes:
-  #     - ./payment_service:/app
-  #   ports:
-  #     - "8012:8012"
-  #   depends_on:
-  #     - broker
-  #   env_file:
-  #     - .env
-  #   networks:
-  #     - kong-net
+  payment_service:
+    build:
+      context: ./payment_service
+      dockerfile: Dockerfile.pay
+    volumes:
+      - ./payment_service:/app
+    ports:
+      - "8012:8012"
+    depends_on:
+      - broker
+    env_file:
+      - .env
+    networks:
+      - kong-net
   
   broker:
     image: apache/kafka:3.7.0
