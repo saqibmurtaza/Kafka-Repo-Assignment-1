@@ -1,6 +1,4 @@
 from .mock_order import MockOrderService
-from aiokafka.errors import KafkaConnectionError
-from order_service import settings
 import os, supabase, logging, httpx
 
 logging.basicConfig(level=logging.INFO)

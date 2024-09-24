@@ -6,9 +6,9 @@ from supabase import Client
 from aiokafka import AIOKafkaProducer
 from .notify_logic import send_order_status_notification
 from .producer import get_kafka_producer
-from .mock_order import MockOrderService, generate_unique_id, generate_api_key
+from .mock_order import MockOrderService
 from .database import create_db_tables, get_session
-from .dependencies import get_mock_order_service, get_real_order_service, create_consumer_and_api_key
+from .dependencies import get_mock_order_service, get_real_order_service
 from .models import Order, OrderCreated, MockOrder, OrderStatusUpdate
 from .validation_logic import validate_api_key
 from .settings import settings
@@ -146,6 +146,7 @@ async def update_order(
     order_id: str,
     payload: OrderCreated,
     api_key: str = Header(..., alias="apikey"),
+    email: str = Header(...),
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     client: Union[MockOrderService, Client] = Depends(get_client),
     session: Session = Depends(get_session)
@@ -155,7 +156,7 @@ async def update_order(
     else:
         model= Order
     try:
-        user= validate_api_key(api_key)
+        user= validate_api_key(api_key, email)
         fetched_api_key = user.get('api_key')  # Fetch API key from user_info
         
         order_info = {
@@ -166,8 +167,7 @@ async def update_order(
             "status": "pending",
             "user_email": payload.user_email,
             "user_phone": payload.user_phone,
-            "api_key": fetched_api_key,
-            # "source": "mock" if isinstance(client, MockOrderService) else "real"
+            "api_key": fetched_api_key
         }    
         response = client.auth.update_order(order_id, order_info)
         if response and isinstance(response, dict):

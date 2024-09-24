@@ -4,9 +4,9 @@ from typing import Optional, List
 
 class Product(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    product_name : str
+    product_name: str
     description: str
-    price : float
+    price: float
 
 class ProductCreate(BaseModel):
     product_name: str

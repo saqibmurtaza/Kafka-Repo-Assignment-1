@@ -12,19 +12,18 @@ def validate_api_key(apikey:str, email:str):
                 },
             timeout=10
         )
+
         response.raise_for_status()
         response_json = response.json()
-        
+    
         if isinstance(response_json, dict) and 'user' in response_json:
             return response_json.get("user")  # Return user data if present
 
         # Handle invalid API key
         raise HTTPException(status_code=403, detail="INVALID_API_KEY")
 
-    except requests.exceptions.HTTPError as http_err:
-        logging.error(f'HTTP error occurred: {http_err}')
-        raise HTTPException(status_code=403, detail="INVALID_API_KEY")
-
-    except requests.exceptions.ConnectionError:
+    except requests.ConnectionError:
         logging.error('CONNECTION_REFUSED_TO_USER_SERVICE')
-        raise HTTPException(status_code=503, detail="User service is unavailable")
+        raise HTTPException(status_code=503, detail="User service is unavailable.")
+
+

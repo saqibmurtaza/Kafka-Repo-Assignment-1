@@ -249,7 +249,8 @@ async def get_user_profile(
                     # Convert the Pydantic model to a dictionary before JSON serialization
                     formatted_mssg_json= json.dumps(user_message.dict(), indent=4)
                     return Response(content=formatted_mssg_json, media_type="application/json")
-        
+                    
+                
             except Exception as e:
                 error_message=str(e)
                 logging.error(f'***ERROR : {str(e)}')

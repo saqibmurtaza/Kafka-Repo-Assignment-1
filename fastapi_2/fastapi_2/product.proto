@@ -15,3 +15,5 @@ message ProductEvent {
   string operation = 1;
   Product data = 2;
 }
+
+//protoc --python_out=. order.proto
