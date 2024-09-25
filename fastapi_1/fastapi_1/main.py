@@ -86,7 +86,7 @@ async def delete_product(
     
     if payload_authkey == fetched_apikey:
 
-        # Create a Protobuf message for the product event
+        # creates an instance of MessageProto 
         msg_response = MessageProto(operation="delete", 
                                         data=ProductProto(id=id))
         # Serialize the Protobuf message to bytes
@@ -129,7 +129,7 @@ async def update_product(
         # Send the serialized bytes
         await producer.send_and_wait(topic, product_event_bytes)
         return {f'MESSAGE: REQUEST_SENT_TO_UPDATE_PRODUCT_IN_DB_OF_ID :{id}'}
-    logging.info(f'AUTH_KEY_MISMATCHED : {payload_authkey}')
+        
 
 @app.get("/product")
 async def list_of_products(

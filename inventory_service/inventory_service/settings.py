@@ -8,12 +8,11 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_INVENTORY_UPDATES: str
-    MOCK_SUPABASE: bool = True
+    CONSUMER_GROUP_INV_MANAGER: str
+    
     SUPABASE_URL: str
+    SUPABASE_DB_URL: str
     SUPABASE_KEY: str
-    JWT_SECRET: str
-    JWT_ALGORITHM: str
-
 
     class Config:
         env_file = '../.env'

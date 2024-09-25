@@ -13,16 +13,7 @@ class MockInventoryService:
         self.users = []
         self.access_token = None
 
-    # def get_user_profile(self, user_id: int):
-    #     logger.info(f'Calling get_user_profile with user_id: {user_id}')
-    #     # Make an HTTP request to the user service to fetch the user profile
-    #     response = requests.get(f'http://localhost:8009/user/profile/{user_id}')
-    #     logger.info(f'Response from user service: {response.status_code}, {response.text}')
 
-    #     if response.status_code == 200:
-    #         return response.json()
-    #     return None
-    
     def get_user_profile(self, user_id: int):
         url = f'http://user_service:8009/user/profile/{user_id}'
         logger.info(f'Sending GET request to URL: {url}')
