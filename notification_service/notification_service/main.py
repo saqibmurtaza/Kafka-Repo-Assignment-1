@@ -1,6 +1,6 @@
 import logging
 from fastapi import FastAPI
-from .consumer import start_consumer
+from .consumer import consume
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    await start_consumer()
+    await consume()
 
 @app.get("/")
 def read_root():

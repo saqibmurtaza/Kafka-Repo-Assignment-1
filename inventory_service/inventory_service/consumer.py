@@ -2,7 +2,9 @@ from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
 from sqlmodel import select
 from .database import engine, Session
+from .settings import settings
 from .models import Inventory
+from .send_msg import send_message
 from .inventory_pb2 import Inventory as InvProto, InventoryUpdates as MsgInv
 import logging, asyncio
 
@@ -31,16 +33,11 @@ async def start_consumer(
         
     try:
         async for message in consumer:
-            logging.info(f'MESSAGE RECIEVED : {message}')
             msg_in_consumer = MsgInv()
             msg_in_consumer.ParseFromString(message.value)
-            logging.info(f'MESSAGE AFTER CONVERSION: {msg_in_consumer}')
-
-            logging.info(f"\nARITHMATIC_OPERATION: **{msg_in_consumer.operation}**")
 
             operation = msg_in_consumer.operation
             invproto = msg_in_consumer.data
-            logging.info(f"Nested Data: {invproto}")
             
             with Session(engine) as session:
                 if operation == "add":
@@ -67,10 +64,31 @@ async def start_consumer(
                             f"***********************\nADDED_INVENTORY:\n"
                             f"{inventory_data}\n***********************\n"
                             )
+
+            # # ENCODE_MESSAGE_TO_PROTOBUF
+                        msg_response = MsgInv(
+                            operation="add",
+                            data=InvProto(
+                                id=inventory_data.id,
+                                item_name=inventory_data.item_name,
+                                unit_price=inventory_data.unit_price,
+                                quantity=inventory_data.quantity,
+                                stock_in_hand=inventory_data.stock_in_hand,
+                                threshold=inventory_data.threshold,
+                                description=inventory_data.description,
+                                email=inventory_data.email
+                            )
+                        )
+                        msg_response_bytes = msg_response.SerializeToString()
+    
+            #FUNCTION_CALL
+                        await send_message(msg_response_bytes, topic=settings.TOPIC_NOTIFY_INVENTORY, bootstrap_server=settings.BOOTSTRAP_SERVER)
+
+                        logging.info(f'MSG_SENT_TO_TOPIC_NOTIFY_MANGER')
                         
                     except Exception as e:
                         session.rollback()
-                        logging.error(f"FAILED_TO_ADD_INVENTORY: {inventory_data}, ERROR: {str(e)}")
+                        logging.error(f"AN_ERROR_OCCURED: {inventory_data}, ERROR: {str(e)}")
                 
                 elif operation == "delete":
                     inventory_id = invproto.id
@@ -90,7 +108,7 @@ async def start_consumer(
                     inv_data = session.get(Inventory, inventory_id)
                     if inv_data:
                         logging.info(
-                            f"*******************************\TRACKED_INVENTORY\n"
+                            f"*******************************TRACKED_INVENTORY\n"
                             f"{inv_data}\n*******************************\n"
                             )
                     else:
@@ -101,8 +119,12 @@ async def start_consumer(
                     product = session.get(Inventory, inventory_id)
                     if product:
                         product.item_name = invproto.item_name
-                        product.description = invproto.description
                         product.unit_price = invproto.unit_price
+                        product.quantity= invproto.quantity
+                        product.stock_in_hand= invproto.stock_in_hand
+                        product.threshold= invproto.threshold
+                        product.description = invproto.description
+                        product.email = invproto.email
                         session.commit()
                         session.refresh(product)
                         logging.info(

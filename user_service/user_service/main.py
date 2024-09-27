@@ -103,9 +103,18 @@ async def register_user(
             kong_response = check_kong_consumer(registered_user.email)
 
             if kong_response:
-                logging.info(f"KONG_CONSUMER_ALREADY_EXISTS_FOR__{registered_user.email}")
+                logging.info(
+                    f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                    f"KONG_CONSUMER_ALREADY_EXISTS_FOR__{registered_user.email}"
+                    f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                    )
+
                 apikey= kong_response.get('auth_key')
-                logging.info(f'EXISTIING_API_KEY**:{apikey}')
+                logging.info(
+                    f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                    f'EXISTIING_API_KEY**:{apikey}'
+                    f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                    )
            
            # CREATE_KONG_CONSUMER_AND_KEY
             else:
@@ -117,7 +126,11 @@ async def register_user(
                     logging.error(f"KONG_CONSUMER_REGISTRATION_FAILED_FOR__{registered_user.email}")
                     raise HTTPException(status_code=500, detail="Kong consumer registration failed.")
 
-            logging.info(f"KONG_CONSUMER_CREATED_OR_FOUND_FOR__{registered_user.email}__APIKEY__{apikey}")
+            logging.info(
+                f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                f"KONG_CONSUMER_CREATED_OR_FOUND_FOR__{registered_user.email}__APIKEY__{apikey}"
+                f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+                )
 
         except Exception as kong_error:
             logging.error(f"KONG_CONSUMER_REGISTRATION_ERROR: {kong_error}")
@@ -135,7 +148,11 @@ async def register_user(
         session.add(new_user)
         session.commit()
 
-        logging.info(f"USER_REGISTERED_IN_DB__{payload.email}__ID__{generated_id}")
+        logging.info(
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            f"USER_REGISTERED_IN_DB__{payload.email}__ID__{generated_id}"
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            )
 
         # Notify the user about successful registration
         user_event_payload = NotifyUser(
@@ -146,9 +163,14 @@ async def register_user(
             api_key= apikey,
             action= 'Signup'
         )
+        user_event_payload_dict= user_event_payload.dict()
 
-        await notify_user_actions(user_event_payload, producer)
-        logging.info(f"NOTIFICATION_SENT_FOR_USER__{registered_user.email}__ID__{generated_id}")
+        await notify_user_actions(user_event_payload_dict, producer)
+        logging.info(
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            f"NOTIFICATION_SENT_FOR_USER__{registered_user.email}__ID__{generated_id}"
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            )
 
         # Final return if everything succeeds
         return registered_user
@@ -197,7 +219,11 @@ async def login(
         logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
         raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
 
-    logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
+    logging.info(
+        f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+        f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}'
+        f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+        )
 
     # Notify user action on successful authentication
     await notify_user_actions(user_data, producer)
@@ -226,7 +252,11 @@ async def get_user_profile(
             logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
             raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
 
-        logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
+        logging.info(
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}'
+            f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+            )
 
         if isinstance(client, MockSupabaseClient):
             try:
@@ -242,9 +272,10 @@ async def get_user_profile(
                     user_data= my_user
                     
                     user_data= User(**user_data)
-                    
+    # DESCRIBE_ACTION
                     user_message = UserMessage(action="get_user_profile", user=user_data)
-                    await notify_user_profile(user_data, producer)
+    # FUNCTION_CALL
+                    await notify_user_profile(user_message, producer)
                     
                     # Convert the Pydantic model to a dictionary before JSON serialization
                     formatted_mssg_json= json.dumps(user_message.dict(), indent=4)
@@ -256,7 +287,7 @@ async def get_user_profile(
                 logging.error(f'***ERROR : {str(e)}')
                 raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
             
-        else:
+        else: #FOR REAL DB
             try:
                 response = client.table('user').select('*').execute()
                 real_user_profile = response.data
@@ -273,52 +304,6 @@ async def get_user_profile(
     except Exception as e:
         logging.error(f'An unexpected error occurred: {str(e)}')
         raise HTTPException(status_code=500, detail="An internal server error occurred")
-
-@app.get("/user", response_model=list[User])
-def get_users_list(
-    email: str = Header(...),
-    user_api_key: str = Header(..., alias='apikey'),
-    client: Union[MockSupabaseClient, Client] = Depends(get_client)
-    ):
-
-    # AUTHENTICATION
-    consumer_response= check_kong_consumer(email)
-    auth_key= consumer_response.get('auth_key')
-
-    if auth_key != user_api_key:
-        logging.error("KONG_AUTHENTICATION_FAILED: key mismatched")
-        raise HTTPException(status_code=401, detail="AUTHENTICATION_FAILED")
-
-    logging.info(f'AUTHENTICATION_PROCESS_SUCCESSFUL_WITH_KEY__{auth_key}')
-
-    
-    if isinstance(client, MockSupabaseClient):
-        try:
-            mock_users_list= client.auth.get_users_list()
-            if not mock_users_list:
-                raise HTTPException(status_code=403, detail='API_KEY_NOT_MATCHED')
-            
-            formatted_json = json.dumps(mock_users_list, indent=4)
-            logging.info(f'LIST_OF_REGISTERED_USERS : {formatted_json}')
-            return Response(content=formatted_json, media_type="application/json")
-    
-        except Exception as e:
-            error_message=str(e)
-            logging.error(f'***ERROR : {str(e)}')
-            raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
-        
-    else:
-        try:
-            response = client.table('user').select('*').execute()
-            real_users_list = response.data
-            formatted_json = json.dumps(real_users_list, indent=4)
-            return formatted_json
-        except Exception as e:
-            error_message=str(e)
-            logging.error(f'***ERROR : {error_message}')
-            raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
-
-
 
 origins = [
     "http://localhost:8000",

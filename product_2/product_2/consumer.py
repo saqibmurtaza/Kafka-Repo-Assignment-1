@@ -3,7 +3,7 @@ from aiokafka.errors import KafkaConnectionError
 from sqlmodel import select
 from .database import engine, Session
 from .model import Product
-from fastapi_2.product_pb2 import ProductEvent
+from product_2.product_pb2 import ProductEvent
 import logging, asyncio
 
 logging.basicConfig(level=logging.INFO)

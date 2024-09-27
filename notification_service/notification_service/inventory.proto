@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package api;
+
+// Define a message for the Product model
+message Inventory {
+  int32 id = 1;
+  string item_name = 2;
+  string description = 3;
+  float unit_price = 4;
+  int32 quantity = 5;
+  int32 stock_in_hand = 6;
+  int32 threshold = 7;
+  string email = 8;
+}
+
+// Define a message for the operations on the Product
+message InventoryUpdates {
+  string operation = 1;
+  Inventory data = 2;
+}

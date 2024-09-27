@@ -47,5 +47,6 @@ class Inventory(BaseModel):
     id: Optional[int] = None
     item_name: str
     quantity: int
+    stock_in_hand: int
     threshold: int  # The minimum quantity before a restock alert is triggered
     email: str  # Email to notify when the threshold is reached

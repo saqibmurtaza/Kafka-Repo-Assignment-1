@@ -23,19 +23,27 @@ async def lifespan(app:FastAPI):
     except Exception as e:
         logging.error(f'\nAN_ERROR_OCCURED : {str(e)}...............\n')
     await asyncio.sleep(5)
-    consumer_task= asyncio.create_task(
+    consumer_task_inv= asyncio.create_task(
         start_consumer(
             topic=settings.TOPIC_INVENTORY_UPDATES,
             bootstrap_server=settings.BOOTSTRAP_SERVER,
             consumer_group_id=settings.CONSUMER_GROUP_INV_MANAGER))
-    
+
+    consumer_task_notify = asyncio.create_task(
+        start_consumer(
+            topic=settings.TOPIC_NOTIFY_INVENTORY,
+            bootstrap_server=settings.BOOTSTRAP_SERVER,
+            consumer_group_id=settings.CONSUMER_GROUP_NOTIFY_MANAGER
+        )
+    )
     create_db_tables()
     try:
         yield
     finally:
-        consumer_task.cancel()
-        await consumer_task
-
+        consumer_task_inv.cancel()
+        await consumer_task_inv
+        consumer_task_notify.cancel()
+        await consumer_task_notify
 
 app = FastAPI(
     lifespan=lifespan,
@@ -82,11 +90,17 @@ async def create_inventory(
     )
     msg_response = InvMessage(operation="add", data=inventory_data)
     msg_response_bytes = msg_response.SerializeToString()
+# FUNCTION_CALL
     await producer.send_and_wait(topic, msg_response_bytes)
+    logging.info(
+        f'\n!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+        f'MESSAGE_SENT_SUCCESSFULLY_TO_TOPIC_INVENTORY_UPDATES :\n {inventory_data}\n'
+        f'\n!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
+        )
     return inventory_data
 
 @app.get("/inventory/{id}")
-async def read_inventory(
+async def track_inventory(
                 id: int, 
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 topic: str = settings.TOPIC_INVENTORY_UPDATES
@@ -95,6 +109,7 @@ async def read_inventory(
     msg_response = InvMessage(operation="read", data=InvProto(id=id))
     # Serialize the Protobuf message to bytes
     msg_response_bytes = msg_response.SerializeToString()
+    
     # Send the serialized bytes
     await producer.send_and_wait(topic, msg_response_bytes)
     return {"MESSAGE": f"REQUEST_SENT_TO_EXTRACT_INVENTORY_FROM_DB_OF_ID : {id}"}
@@ -122,6 +137,7 @@ async def delete_inventory(
                                         data=InvProto(id=id))
         # Serialize the Protobuf message to bytes
         msg_response_bytes = msg_response.SerializeToString()
+        
         # Send the serialized bytes
         await producer.send_and_wait(topic, msg_response_bytes)
         return {f'MESSAGE: REQEUST_SENT_TO_DELETE_INVENTORY_FROM_DB_OF_ID :{id}'}
@@ -137,10 +153,16 @@ async def update_inventory(
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
         topic: str = settings.TOPIC_INVENTORY_UPDATES
         ):
-    # Kong_Validation
+# KONG_AUTHENTICATION
     try:
         get_user= validate_api_key(payload_authkey, email)
         fetched_apikey= get_user.get('api_key')
+        logging.info(
+            f'\n!***!!!***!!!***!!!***!!!***!!!***!!!***!!!***!!!***!!\n'
+            f'KONG_AUTHENTICATION_SUCCEEDED\n'
+            f'AUTH_KEY : {fetched_apikey}\n'
+            f'\n!***!!!***!!!***!!!***!!!***!!!***!!!***!!!***!!!***!!\n'
+            )
     except Exception as e:
         logging.error(f'ERROR***{str(e)}')
         raise HTTPException(status_code=401, detail= 'UNAUHORIZED-CHECK_CREDENTIALS')
@@ -161,7 +183,8 @@ async def update_inventory(
         msg_response = InvMessage(operation="update", data=inv_data)
         # Serialize the Protobuf message to bytes
         msg_response_bytes= msg_response.SerializeToString() # it populate the instance of InvMessage
-        # Send the serialized bytes
+        
+# FUNCTION_CALL
         await producer.send_and_wait(topic, msg_response_bytes)
         return {f'MESSAGE: REQUEST_SENT_TO_UPDATE_INVENTORY_IN_DB_OF_ID :{id}'}
     logging.info(f'AUTH_KEY_MISMATCHED : {payload_authkey}')
@@ -176,6 +199,7 @@ async def list_of_inventory(
     # Serialize the Protobuf message to bytes
     msg_response_bytes = msg_response.SerializeToString()
     # Send the serialized bytes
+    
     await producer.send_and_wait(topic, msg_response_bytes)
     return {"MESSAGE": "REQUEST_SENT_TO_GET_LIST_OF_INVENTORY_FROM_DB"}
 

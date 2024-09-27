@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_INVENTORY_UPDATES: str
+    TOPIC_NOTIFY_INVENTORY: str
     CONSUMER_GROUP_INV_MANAGER: str
+    CONSUMER_GROUP_NOTIFY_MANAGER: str
     
     SUPABASE_URL: str
     SUPABASE_DB_URL: str

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package order;
+
+message OrderProto {
+    string id = 1;
+    string item_name = 2;
+    int32 quantity = 3;
+    float price = 4;
+    string status = 5;
+    string user_email= 6;
+    string user_phone = 7;
+    string api_key = 9;
+}

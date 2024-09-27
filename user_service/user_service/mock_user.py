@@ -71,7 +71,3 @@ class MockSupabaseAuth():
             user_data= response.data
             return user_data 
 
-    def get_users_list(self):
-            response= supabase.table('mockuser').select('*').execute()
-            users_list= response.data
-            return users_list 

@@ -83,12 +83,12 @@ services:
       retries: 10
     restart: on-failure
 
-  fastapi_01:
+  product_01:
     build:
-      context: ./fastapi_1
+      context: ./product_1
       dockerfile: Dockerfile.prod
     volumes:
-      - ./fastapi_1:/app
+      - ./product_1:/app
     ports:
       - "8006:8006"
     env_file:
@@ -98,12 +98,12 @@ services:
     networks:
       - kong-net
 
-  fastapi_02:
+  product_02:
     build:
-      context: ./fastapi_2
+      context: ./product_2
       dockerfile: Dockerfile.cons
     volumes:
-      - ./fastapi_2:/app
+      - ./product_2:/app
     ports:
       - "8007:8007"
     env_file:

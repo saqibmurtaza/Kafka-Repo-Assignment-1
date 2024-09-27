@@ -7,7 +7,7 @@ from .models import Product, ProductUpdate, ProductCreate
 from .producer import get_kafka_producer, AIOKafkaProducer
 from .validation_logic import validate_api_key
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_1.product_pb2 import Product as ProductProto, ProductEvent as MessageProto
+from product_1.product_pb2 import Product as ProductProto, ProductEvent as MessageProto
 import logging, secrets, uuid
 
 logging.basicConfig(level=logging.INFO)

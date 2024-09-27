@@ -28,20 +28,20 @@ async def send_order_status_notification(
         serialized_payload= payload.SerializeToString()
         
         await producer.send_and_wait(topic, serialized_payload)
-        
-        logging.info(
-            f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
-            f"\nNOTIFICATION_SENT_TO_NOTIFICATION_&_PAYMENT_SERVICE:\n"
-            f"\nORDER_STATUS: {payload.status}\n"
-            f"ORDER_DETAILS:\n"
-            f"ITEM: {payload.item_name}\n"
-            f"QUANTITY: {payload.quantity}\n"
-            f"PRICE: {payload.price}\n"
-            f"USER_EMAIL: {payload.user_email}\n"
-            f"USER_PHONE: {payload.user_phone}\n"
-            f"AUTHENTICATION_KEY: {payload.api_key}\n"
-            f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
-        )
+        logging.info(f'SEND_TO_KAFKA : {serialized_payload}')
+        # logging.info(
+        #     f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+        #     f"\nNOTIFICATION_SENT_TO_NOTIFICATION_&_PAYMENT_SERVICE:\n"
+        #     f"\nORDER_STATUS: {payload.status}\n"
+        #     f"ORDER_DETAILS:\n"
+        #     f"ITEM: {payload.item_name}\n"
+        #     f"QUANTITY: {payload.quantity}\n"
+        #     f"PRICE: {payload.price}\n"
+        #     f"USER_EMAIL: {payload.user_email}\n"
+        #     f"USER_PHONE: {payload.user_phone}\n"
+        #     f"AUTHENTICATION_KEY: {payload.api_key}\n"
+        #     f'\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n'
+        # )
     finally:
         await producer.stop()
 

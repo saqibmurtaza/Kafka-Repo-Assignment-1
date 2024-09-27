@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from sqlmodel import SQLModel, Field
-from typing import Optional
+from typing import Optional, List
 import logging
 
 logging.basicConfig(level=logging.INFO)

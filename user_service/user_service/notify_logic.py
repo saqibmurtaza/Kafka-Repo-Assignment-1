@@ -1,7 +1,7 @@
 from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
 from .settings import settings
-from .models import UserMessage, NotifyUser
+from .models import UserMessage, NotifyUser, User
 import json, logging
 
 logging.basicConfig(level=logging.INFO)
@@ -46,12 +46,13 @@ async def notify_user_profile(
     await producer.start()
     try:
         payload_dict = {
-            "id": payload.id,
-            "username": payload.username,
-            "email": payload.email,
-            "password": payload.password,
-            "api_key": payload.api_key,
-            "source": payload.source
+            "action": payload.action,
+            "id": payload.user.id,
+            "username": payload.user.username,
+            "email": payload.user.email,
+            "password": payload.user.password,
+            "api_key": payload.user.api_key,
+            "source": payload.user.source
             
         }
         message = json.dumps(payload_dict)  # Convert to JSON string
@@ -71,3 +72,4 @@ async def notify_user_profile(
     finally:
         await producer.stop()
     return None
+
