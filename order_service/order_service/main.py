@@ -258,6 +258,7 @@ async def get_orders_list(
     
     logging.info(f'{formatted_json}')
     # Return the formatted JSON as a response with appropriate headers
-    await send_order_status_notification(orders_list, producer)
+    
+    await send_order_status_notification(orders_list, producer)  # Pass None for payload if it's not needed
     return Response(content=formatted_json, media_type="application/json")
 
