@@ -18,6 +18,7 @@ requests = "^2.32.3"
 dapr = "^1.13.0"
 pydantic-settings = "^2.4.0"
 supabase = "^2.6.0"
+pyjwt = "^2.10.0"
 
 
 [build-system]

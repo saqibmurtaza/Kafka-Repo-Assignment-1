@@ -1842,6 +1842,21 @@ release = ["twine"]
 test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
 
 [[package]]
+name = "stripe"
+version = "11.2.0"
+description = "Python bindings for the Stripe API"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "stripe-11.2.0-py2.py3-none-any.whl", hash = "sha256:dec812eabc95488862be40e6c799acdaf2e1225d686490a793f949fab745fdd0"},
+    {file = "stripe-11.2.0.tar.gz", hash = "sha256:4c53d61d7b596070324bfa5d7215843145fe5466e48973d828aab41ad209b5ce"},
+]
+
+[package.dependencies]
+requests = {version = ">=2.20", markers = "python_version >= \"3.0\""}
+typing-extensions = {version = ">=4.5.0", markers = "python_version >= \"3.7\""}
+
+[[package]]
 name = "supabase"
 version = "2.7.4"
 description = "Supabase client for Python."
@@ -2283,4 +2298,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "e7ac06900b5ecc643d9961f81c6f25f06afd483424070c84190b94afb3569a7f"
+content-hash = "5e1571aed72474891112febe601fedc6a0011f9016a80abc831b3486860ca685"

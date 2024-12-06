@@ -13,13 +13,17 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0border.proto\x12\x05order\"\x95\x01\n\nOrderProto\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\titem_name\x18\x02 \x01(\t\x12\x10\n\x08quantity\x18\x03 \x01(\x05\x12\r\n\x05price\x18\x04 \x01(\x02\x12\x0e\n\x06status\x18\x05 \x01(\t\x12\x12\n\nuser_email\x18\x06 \x01(\t\x12\x12\n\nuser_phone\x18\x07 \x01(\t\x12\x0f\n\x07\x61pi_key\x18\t \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0border.proto\"\x99\x01\n\nOrderProto\x12\x0f\n\x02id\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x11\n\titem_name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12\x10\n\x08quantity\x18\x04 \x01(\x05\x12\r\n\x05price\x18\x05 \x01(\x02\x12\x16\n\x0epayment_status\x18\x06 \x01(\t\x12\x12\n\nuser_email\x18\x07 \x01(\tB\x05\n\x03_id\"8\n\x0bNotifyOrder\x12\x0e\n\x06\x61\x63tion\x18\x01 \x01(\t\x12\x19\n\x04\x64\x61ta\x18\x02 \x01(\x0b\x32\x0b.OrderProto\"&\n\tCartProto\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05price\x18\x02 \x01(\x01\x62\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'order_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _ORDERPROTO._serialized_start=23
-  _ORDERPROTO._serialized_end=172
+  _ORDERPROTO._serialized_start=16
+  _ORDERPROTO._serialized_end=169
+  _NOTIFYORDER._serialized_start=171
+  _NOTIFYORDER._serialized_end=227
+  _CARTPROTO._serialized_start=229
+  _CARTPROTO._serialized_end=267
 # @@protoc_insertion_point(module_scope)

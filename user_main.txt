@@ -91,10 +91,11 @@ async def login(
                 payload: LoginRequest,
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: MockSupabaseClient = Depends(get_client)):
+    
     response = client.auth.login(payload)
 
     if payload.action != "Login":
-        raise HTTPException(status_code=400, detail="Invalid action. Action must be 'Signup'.")
+        raise HTTPException(status_code=400, detail="Invalid action. Action must be 'Login'.")
 
     if "error" in response:
         raise HTTPException(status_code=500, detail=response)

@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_DB_URL: str
     SUPABASE_KEY: str
+    ADMIN_SECRET: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
     
 
     class Config:
@@ -25,3 +28,4 @@ logging.info("BOOTSTRAP_SERVER: %s", settings.BOOTSTRAP_SERVER)
 logging.info("TOPIC_USER_EVENTS: %s", settings.TOPIC_USER_EVENTS)
 logging.info("MOCK_SUPABASE: %s", settings.MOCK_SUPABASE)
 logging.info("SUPABASE_URL: %s", settings.SUPABASE_URL)
+logging.info('ADMIN_SECRET: %s', settings.ADMIN_SECRET)

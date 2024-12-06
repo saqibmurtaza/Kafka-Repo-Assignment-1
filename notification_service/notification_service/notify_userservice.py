@@ -1,52 +1,18 @@
-from .models import UserRegistration
+from .models import NotifyUser
 from .email_function import send_email
-import logging, json
+import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-#################################################
-##### USER_SERVICE_MESSAGE_PROCEESSING_FUNCTION
-#################################################
-async def process_user_message(message: dict):
-    try:
-        data = UserRegistration(
-            username=message.get("username"),
-            email=message.get("email"),
-            password=message.get("password"),
-            action=message.get("action")
-        )
-        action = data.action
-
-        if action == "Signup":
-            await send_signup_email(data)
-        elif action == "Login":
-            await send_login_email(data)
-        elif action == "get_user_profile":
-            # Create a dictionary from the UserRegistration object for sending the profile email
-            payload_dict = {
-                'username': data.username,
-                'email': data.email,
-                'password': data.password,
-                'api_key': message.get('api_key'),  # Assuming these are in the incoming message
-                'source': message.get('source'),  # Assuming these are in the incoming message
-                'action': data.action
-            }
-            await send_profile_email(payload_dict)
-    
-        else:
-            logging.warning(f"Unknown action: {action}")
-    except json.JSONDecodeError as e:
-        logging.error(f"FAILED_TO_DECODE_MESSAGE: {e}")
-
 #################################################
 ##### SIGNUP_EMAIL_FUNCTION
 #################################################
-async def send_signup_email(data: UserRegistration):
+async def send_signup_email(data: NotifyUser):
+    
     subject = "WELCOME TO ONLINE SHOPPING MALL!"
     body = f'''
-    Hello {data.username},
+    Hello {data.get('username')},
 
     !***!WELCOME TO ONLINE SHOPPING MALL!***!
     
@@ -54,88 +20,74 @@ async def send_signup_email(data: UserRegistration):
     
     Your Credentials:
 
-    username: {data.username}
-    password: {data.password}
-    email: {data.email}
+    username: {data.get('username')}
+    password: {data.get('password')}
+    email: {data.get('email')}
     
     Best regards,
     Your Service Team - ONLINE_SHOPPING_MALL
     '''
-    await send_email(data.email, subject, body)
-    logging.info(
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"=====================================================\n"
-                f"SIGN_UP_MESSAGE_DISPATCHED_TO_USER\n"
-                f"=====================================================\n"
-                f"\nPROCESSED_MESSAGE:\n"
-                f"ACTION : {data.action}\n"
-                f"USERNAME : {data.username}\n"
-                f"EMAIL : {data.email}\n"
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-            )
+    await send_email(data['email'], subject, body)
+    logging.info(f"Email successfully sent to: {data['email']}")
 
 #################################################
 ##### LOGIN_EMAIL_FUNCTION
 #################################################
-async def send_login_email(data: UserRegistration):
+async def send_login_email(data: NotifyUser):
+    
     subject = "Login Alert"
     body = body = f"""
-    Hello {data.username},
+    Hello {data.get('username')},
 
     !***!WELCOME TO ONLINE SHOPPING MALL!***!
 
-    You have successfully {data.action} with Credentials:
-    username: {data.username}
-    password: {data.password}
+    You have successfully {data.get('action')} with Credentials:
+    username: {data.get('username')}
+    password: {data.get('password')}
+    Login Token : {data.get('Token')}
+
+    You logged_in with email : {data.get('email')}
 
     Best regards,
     Your Service Team - ONLINE_SHOPPING_MALL
     """
-    await send_email(data.email, subject, body)
-    
-    logging.info(
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"=====================================================\n"
-                f"LOGIN_MESSAGE_&_TOKEN_DISPATCHED_TO_USER\n"
-                f"=====================================================\n"
-                f"\nPROCESSED_MESSAGE:\n"
-                f"ACTION : {data.action}\n"
-                f"EMAIL : {data.email}\n"
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-            )
+    await send_email(data['email'], subject, body)
+    logging.info(f"Email successfully sent to: {data['email']}")
 
 #################################################
 ##### USER_PROFILE_SEND_EMAIL_FUNCTION
 #################################################
-async def send_profile_email(payload_dict: dict):
-    subject = "Profile Accessed"
-    body = f"""
-    !***!WELCOME TO ONLINE SHOPPING MALL!***!
     
-    Hello {payload_dict['username']},\n\n
-    Your profile details:\n
-    action: {payload_dict['action']}
-    Username: {payload_dict['username']}\n
-    Email: {payload_dict['email']}\n
-    Password: {payload_dict['password']}\n
-    API Key: {payload_dict['api_key']}\n
-    Source: {payload_dict['source']}\n
+async def send_profile_email(payload_list: list[dict]):
+    subject = "LIST_OF_PROFILES"
+    body = """ ***WELCOME TO ONLINE SHOPPING MALL!*** """
+    for my_list in payload_list:
+
+        body += f"""
+        ID: {my_list['id']}
+        Username: {my_list['username']}
+        Role: {my_list['role']}
+        Email: {my_list['email']}
+        Password: {my_list['password']}
+        API Key: {my_list['api_key']}
+        Source: {my_list['source']}
+        Action: {my_list['action']}
+        """
     
+    body += """
     Thanks.
-    ONLINE_SHOPPING_MALL - TEAM
+    ONLINE SHOPPING MALL - TEAM
     """
-    await send_email(payload_dict["email"], subject, body)
+    for my_list in payload_list:
+        if my_list['role'] == 'admin':
+            try:
+                await send_email(my_list["email"], subject, body)
+                logging.info(f"Email successfully sent to: {my_list['email']}")
+            except Exception as e:
+                logging.error(f"Failed to send email to {my_list['email']}: {e}")
+        else:
+            logging.info(f"PROFILES_RECEIVED_BY_ADMINS_ONLY")
     
-    # Log the message after sending
-    logging.info(
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"=====================================================\n"
-                f"USER_PROFILE_DISPATCHED_TO_USER\n"
-                f"=====================================================\n"
-                f"\nPROCESSED_MESSAGE:\n"
-                f"ACTION : {payload_dict['action']}\n"  # Use payload_dict here
-                f"USERNAME : {payload_dict['username']}\n"
-                f"EMAIL : {payload_dict['email']}\n"
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-            )
+
+
     

@@ -34,7 +34,7 @@ async def start_consumer(
             msg_in_consumer = ProductEvent()
             msg_in_consumer.ParseFromString(message.value)
 
-            logging.info(f"\n***************\nARITHMATIC_OPERATION: **{msg_in_consumer.operation}**")
+            logging.info(f"\n***************\ACTION: **{msg_in_consumer.operation}**")
 
             operation = msg_in_consumer.operation
             product_data_proto = msg_in_consumer.data
@@ -49,7 +49,8 @@ async def start_consumer(
                         id=product_id if product_id != 0 else None,  # Let the database generate id if it's 0
                         product_name=product_data_proto.product_name,
                         description=product_data_proto.description,
-                        price=product_data_proto.price
+                        price=product_data_proto.price,
+                        quantity=product_data_proto.quantity
                     )
                     
                     try:
@@ -96,6 +97,7 @@ async def start_consumer(
                         product.product_name = product_data_proto.product_name
                         product.description = product_data_proto.description
                         product.price = product_data_proto.price
+                        product.quantity = product_data_proto.quantity
                         session.commit()
                         session.refresh(product)
                         logging.info(

@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOOTSTRAP_SERVER: str
     TOPIC_PRODUCT_CRUD: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
 
     class Config:
         env_file = '../.env'

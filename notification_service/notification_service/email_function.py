@@ -23,6 +23,7 @@ async def send_email(to_email: str, subject: str, body: str):
     try:
         # Connect to the SMTP server using settings
         server = smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT)
+        # server.set_debuglevel(1) 
         server.starttls() # Secure the connection using TLS
         server.login(from_email, password) # Login to the server
 

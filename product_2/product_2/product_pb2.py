@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x03\x61pi\"O\n\x07Product\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x14\n\x0cproduct_name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12\r\n\x05price\x18\x04 \x01(\x02\"=\n\x0cProductEvent\x12\x11\n\toperation\x18\x01 \x01(\t\x12\x1a\n\x04\x64\x61ta\x18\x02 \x01(\x0b\x32\x0c.api.Productb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rproduct.proto\x12\x03\x61pi\"a\n\x07Product\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x14\n\x0cproduct_name\x18\x02 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x03 \x01(\t\x12\r\n\x05price\x18\x04 \x01(\x02\x12\x10\n\x08quantity\x18\x05 \x01(\x05\"=\n\x0cProductEvent\x12\x11\n\toperation\x18\x01 \x01(\t\x12\x1a\n\x04\x64\x61ta\x18\x02 \x01(\x0b\x32\x0c.api.Productb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'product_pb2', globals())
@@ -21,7 +21,7 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _PRODUCT._serialized_start=22
-  _PRODUCT._serialized_end=101
-  _PRODUCTEVENT._serialized_start=103
-  _PRODUCTEVENT._serialized_end=164
+  _PRODUCT._serialized_end=119
+  _PRODUCTEVENT._serialized_start=121
+  _PRODUCTEVENT._serialized_end=182
 # @@protoc_insertion_point(module_scope)

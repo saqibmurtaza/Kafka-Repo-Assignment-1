@@ -13,9 +13,14 @@ class Settings(BaseSettings):
     MOCK_SUPABASE: bool = True
     SUPABASE_URL: str
     SUPABASE_KEY: str
-    SUPABASE_DB_URL:str
-
+    SUPABASE_DB_URL: str
+    STRIPE_API_KEY: str
     PAYMENT_SERVICE_URL: str
+
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+
+    ORDER_KEY: str
 
     class Config:
         env_file = '../.env'
@@ -29,3 +34,4 @@ logging.info("BOOTSTRAP_SERVER: %s", settings.BOOTSTRAP_SERVER)
 logging.info("TOPIC_ORDER_STATUS: %s", settings.TOPIC_ORDER_STATUS)
 logging.info("MOCK_SUPABASE: %s", settings.MOCK_SUPABASE)
 logging.info("SUPABASE_URL: %s", settings.SUPABASE_URL)
+logging.info("STRIPE_API_KEY: %s", settings.STRIPE_API_KEY)

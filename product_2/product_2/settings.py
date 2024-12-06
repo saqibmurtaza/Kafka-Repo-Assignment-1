@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_DB_URL: str
     SUPABASE_KEY: str
+
+    JWT_ALGORITHM: str
+    JWT_SECRET: str
     
     class Config:
         env_file = '../.env'

@@ -7,11 +7,13 @@ class Product(SQLModel, table=True):
     product_name: str
     description: str
     price: float
+    quantity: int
 
 class ProductCreate(BaseModel):
     product_name: str
     description: str
     price: float
+    quantity: int
 
 
 class DeleteProductsRequest(BaseModel):
@@ -21,3 +23,4 @@ class ProductUpdate(BaseModel):
     product_name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
+    quantity: Optional[int] = None

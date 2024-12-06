@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 ##### ORDER_SERVICE_MESSAGE_PROCEESSING_FUNCTION
 #################################################
 async def process_order_message(message: OrderProto ):
-    # New order message processing logic
+    logging.info(f"ORDER RECD IN PAYLOAD: {message}")
     try:
         data = Order(
             item_name=message.item_name,
@@ -19,7 +19,7 @@ async def process_order_message(message: OrderProto ):
             price=message.price,        
             status=message.status,      
             user_email=message.user_email, 
-            user_phone=message.user_phone  
+            user_phone=message.user_phone
         )
 
         await send_order_email(data)
@@ -35,15 +35,4 @@ async def send_order_email(data: Order):
     body = f"Your order for {data.item_name} is now {data.status}."
     await send_email(data.user_email, subject, body)
 
-    logging.info(
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-                f"\nORDER_STATUS_MESSAGE_PROCESSED_AND_DISPATCHED_TO_USER\n"
-                f"PROCESSED_MESSAGE:\n"
-                f"\nSTATUS : {data.status}\n"
-                f"ITEM_NAME : {data.item_name}\n"
-                f"QUANTITY : {data.quantity}\n"
-                f"PRICE : {data.price}\n"
-                f"USER_EMAIL : {data.user_email}\n"
-                f"USER_PHONE : {data.user_phone}\n"
-                f"\n!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!****!\n"
-            )
+    logging.info(f"EMAIL_SENT_TO_{data.user_email}")

@@ -1,9 +1,7 @@
-from fastapi import HTTPException
 from sqlmodel import Session, create_engine, SQLModel
 from supabase import create_client, Client
 from .settings import settings
-from .models import MockOrder, Order
-import logging, requests
+from .models import MockCart, Cart
 
 
 SUPABASE_URL= settings.SUPABASE_URL
@@ -21,4 +19,5 @@ async def get_session():
         yield session
 
 def create_db_tables():
-    SQLModel.metadata.create_all(engine, tables=[Order.__table__, MockOrder.__table__])
+    SQLModel.metadata.create_all(engine, 
+                        tables= [Cart.__table__, MockCart.__table__ ])

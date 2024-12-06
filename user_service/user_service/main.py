@@ -1,23 +1,23 @@
-from fastapi import FastAPI, Depends, HTTPException, Header, Response
+from fastapi import FastAPI, Depends, HTTPException, Header, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 from supabase import Client
-from typing import Union
+from typing import Union, Optional
 from contextlib import asynccontextmanager
-from .dependencies import get_mock_supabase_client, get_supabase_cleint, create_consumer_and_key, check_kong_consumer
+from .dependencies import get_mock_supabase_client, get_supabase_cleint
+from .kong_api_calls import create_consumer_and_key, check_kong_consumer
 from .database import create_db_tables, get_session
-from .mock_user import MockSupabaseClient
+from .mock_user import MockSupabaseClient, get_user_role_by_email
 from .producer import get_kafka_producer
 from .models import User, MockUser, UserInfo, UserMessage, NotifyUser, LoginInfo
 from .settings import settings
 from .notify_logic import notify_user_profile, notify_user_actions
 from aiokafka import AIOKafkaProducer
-import logging, asyncio, json
+import logging, asyncio, json, jwt
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,23 +66,33 @@ def read_root():
 @app.post("/user/signup", response_model=User)
 async def register_user(
         payload: UserInfo,
+        request: Request,
+        admin_secret: Optional[str] = Header(None,alias='admin_key'),
         producer: AIOKafkaProducer = Depends(get_kafka_producer),
         client: Union[MockSupabaseClient, Client] = Depends(get_client),
         session: Session = Depends(get_session)
     ):
+    logging.info(f"Request headers: {dict(request.headers)}") # display all headers in payload request
     
-    if isinstance(client, MockSupabaseClient):
+    if isinstance(client, MockSupabaseClient): # in .env variable set it true
         model = MockUser
     else:
         model = User
     
+    # Assgin Roles
+    if admin_secret == settings.ADMIN_SECRET:
+        role = 'admin'
+    else:
+        role = 'user'
+
     try:
         # Prepare user's data for further processing
         user_data = {
             "username": payload.username,
             "email": payload.email,
             "password": payload.password,
-            "source": "mock" if isinstance(client, MockSupabaseClient) else "real"
+            "source": "mock" if isinstance(client, MockSupabaseClient) else "real",
+            "role": role
         }
 
         # Attempt to sign up the user
@@ -95,10 +105,9 @@ async def register_user(
         registered_user = response.get('user')
         generated_id = registered_user.id
         generated_apikey= registered_user.api_key
-        logging.info(f'NEW_API_KEY:{generated_apikey}')
 
         apikey= None #initialize the key
-        # Before generating a new API key, check if the consumer already exists in Kong
+        # Before generating new API key,check if the consumer already exists in Kong
         try:
             kong_response = check_kong_consumer(registered_user.email)
 
@@ -140,6 +149,7 @@ async def register_user(
         new_user = model(
             id= generated_id,
             username= payload.username,
+            role= role,
             email= payload.email,
             password= payload.password,
             api_key= apikey,  
@@ -153,25 +163,26 @@ async def register_user(
             f"USER_REGISTERED_IN_DB__{payload.email}__ID__{generated_id}"
             f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
             )
-
-        # Notify the user about successful registration
-        user_event_payload = NotifyUser(
+        
+        # Prepare data for sending to notification service
+        data_instance = NotifyUser(
             id= generated_id,
             username= payload.username,
+            role= role,
             email= payload.email,
             password= payload.password,
             api_key= apikey,
+            token= None, # login endpoint will generate it, here its none
             action= 'Signup'
         )
-        user_event_payload_dict= user_event_payload.dict()
 
-        await notify_user_actions(user_event_payload_dict, producer)
+        await notify_user_actions(data_instance, producer) # Notify user
+        
         logging.info(
             f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
-            f"NOTIFICATION_SENT_FOR_USER__{registered_user.email}__ID__{generated_id}"
+            f"NOTIFICATION_SENT_TO_USER__{registered_user.email}__ROLE__{role}"
             f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
             )
-
         # Final return if everything succeeds
         return registered_user
 
@@ -193,21 +204,19 @@ async def login(
                 producer: AIOKafkaProducer = Depends(get_kafka_producer),
                 client: Union[MockSupabaseClient, Client] = Depends(get_client)):
     
-    response = client.auth.login(payload)
+    response = client.auth.login(payload) 
     if "CREDENTIALS_MISMATCHED" in response:
         logging.info(f'LOGIN_FAILED: {response}')
         raise HTTPException(status_code=409, detail='CREDENTIALS_NOT_MATCHED')
 
-    # Extract Data
-    user_data = {
-        'action': 'Login',
-        "id": response.get('id'),
-        "username": response.get('username'),
-        "email": response.get('email'),
-        "password": response.get('password'),
-        "api_key": response.get('api_key')
-    }
-
+    # Extract Data returned by mock_user
+    user_data= response.get('user')
+    token= response.get('token')
+    if token:
+        user_data['token'] = token
+    else:
+        logging.error(f"TOKEN_IS_NOT_RECIEVED_FROM_")
+    
     # AUTHENTICATION
     consumer_response= check_kong_consumer(user_data.get('email'))
     logging.info(f'CONSUMER_RESPONSE:{consumer_response}')
@@ -225,27 +234,39 @@ async def login(
         f'!\n****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!!****!\n'
         )
 
-    # Notify user action on successful authentication
-    await notify_user_actions(user_data, producer)
+    # Pass instance of NotifyUser to function, it makes easy when notify function get it
+    data_instance= NotifyUser(action= 'login', **user_data)
+
+    await notify_user_actions(data_instance, producer) # Notify user
 
     message = f'SUCCESSFULLY_LOGGED_IN_WITH__{user_data.get("email")}'
-    return {"message": message}
+    return {
+        "message": message,
+        "token": token
+        }
 
 @app.get("/user/profile", response_model=User)
 async def get_user_profile(
-    email: str = Header(...),
     user_api_key: str = Header(..., alias='apikey'),
+    token: str = Header(..., alias='token'),
     producer: AIOKafkaProducer = Depends(get_kafka_producer),
     client: Union[MockSupabaseClient, Client] = Depends(get_client)
     ):
     try:
+        decoded_token= jwt.decode(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
+        logging.info(f"DecodedToken:{decoded_token}")
+        
+        # Extract email from token; without logging in, you cannot obtain the token and consequently do not have the email for authentication
+        email= decoded_token.get('email')
+        role= decoded_token.get('role')
+
         # AUTHENTICATION
         consumer_response= check_kong_consumer(email)
         # Check if consumer_response is None
         if consumer_response is None:
             logging.error(f'NO_CONSUMER_FOUND_WITH_MENTIONED_EMAIL: {email}')
             raise HTTPException(status_code=404, detail=f"No consumer found with email: {email}")
-    
+ 
         auth_key= consumer_response.get('auth_key')
 
         if auth_key != user_api_key:
@@ -263,47 +284,76 @@ async def get_user_profile(
                 mock_user_profile= client.auth.user_profile(user_api_key)
                 if not mock_user_profile:
                     raise HTTPException(status_code=403, detail='API_KEY_NOT_MATCHED')
-                
-                formatted_json = json.dumps(mock_user_profile, indent=4)
-                logging.info(f'USER_PROFILE:{formatted_json}')
 
-                # Prepare message for Notification
-                for my_user in mock_user_profile:
-                    user_data= my_user
-                    
-                    user_data= User(**user_data)
-    # DESCRIBE_ACTION
-                    user_message = UserMessage(action="get_user_profile", user=user_data)
-    # FUNCTION_CALL
+                # Role-based Access Control
+                # role= get_user_role_by_email(email)
+                if role == 'admin':
+                    # Extract List, recieved from client.auth
+                    data_list= []                
+                    for my_user in mock_user_profile: 
+                        data_obj= User(**my_user) # # Create a User object from the dictionary
+                        data_list.append(data_obj) 
+
+                    logging.info(f"DATA_LIST:{data_list}")
+                    # Prepare message for Notification & DESCRIBE_ACTION in UserMessage
+                    user_message = UserMessage(action="get_user_profile", user=data_list)
+                    # FUNCTION_CALL
                     await notify_user_profile(user_message, producer)
-                    
+                        
                     # Convert the Pydantic model to a dictionary before JSON serialization
-                    formatted_mssg_json= json.dumps(user_message.dict(), indent=4)
+                    formatted_mssg_json= json.dumps(user_message.dict(), indent=4) #convert a Python object/dict into a JSON-formatted string
                     return Response(content=formatted_mssg_json, media_type="application/json")
-                    
-                
+                elif role == 'user':
+                    # User: Can only access their own profile <---
+                    user_profile = next(
+                        (user for user in mock_user_profile if user['email'] == email), None
+                    )
+                    if not user_profile:
+                        raise HTTPException(status_code=404, detail="USER_PROFILE_NOT_FOUND")
+
+                    # Return the user's own profile
+                    data_obj = User(**user_profile)
+                    logging.info(f"USER_PROFILE: {data_obj}")
+                    return data_obj.dict()
+    
+                # Deny access for other roles <---
+                raise HTTPException(status_code=403, detail="ACCESS_DENIED: Role not recognized")
+    
             except Exception as e:
                 error_message=str(e)
-                logging.error(f'***ERROR : {str(e)}')
+                logging.error(f'ERROR_DETAILS : {str(e)}')
                 raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
             
         else: #FOR REAL DB
             try:
                 response = client.table('user').select('*').execute()
                 real_user_profile = response.data
-                formatted_json = json.dumps(real_user_profile, indent=4)
-                return formatted_json
+                if role == 'admin':
+                    formatted_json = json.dumps(real_user_profile, indent=4)
+                    return formatted_json
+                elif role == 'user':
+                    user_profile = next(
+                        (user for user in real_user_profile if user['email'] == email), None
+                    )
+                    if not user_profile:
+                        raise HTTPException(status_code=404, detail="USER_PROFILE_NOT_FOUND")
+                    return user_profile
+                else:
+                    raise HTTPException(status_code=403, detail="ACCESS_DENIED: Role not recognized")
+
             except Exception as e:
                 error_message=str(e)
-                logging.error(f'***ERROR : {error_message}')
+                logging.error(f'ERROR_STATUS : {error_message}')
                 raise HTTPException(status_code=403, detail=f"NATURE_OF_ERROR:{error_message}")
     
-    except HTTPException as e:
-        raise e  # Re-raise HTTPException with the proper status code and message
-    
     except Exception as e:
-        logging.error(f'An unexpected error occurred: {str(e)}')
-        raise HTTPException(status_code=500, detail="An internal server error occurred")
+        # Log the actual error message
+        logging.error(f"Error occurred: {e}")
+        # If the error is an HTTPException, use its status code and detail
+        if isinstance(e, HTTPException):
+            raise e
+        # For all other exceptions, return the actual error message with a 400 status code
+        raise HTTPException(status_code=400, detail=str(e))
 
 origins = [
     "http://localhost:8000",

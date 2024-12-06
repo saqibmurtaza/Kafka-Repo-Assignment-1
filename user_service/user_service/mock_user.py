@@ -2,7 +2,9 @@ from fastapi import HTTPException
 from .models import User, LoginInfo
 from .database import supabase
 from .models import MockTable
-import logging, secrets, json, uuid
+from .settings import settings
+from datetime import datetime, timedelta, timezone
+import logging, secrets, json, uuid, jwt
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
@@ -52,8 +54,6 @@ class MockSupabaseAuth():
         email = payload.email
         password = payload.password
 
-        logging.info(f"Attempting login with email: {email} and password: {password}")
-
         response = supabase.from_('mockuser').select('*').eq('email', payload.email).execute()
         # Convert to string
         response_str = response.json()
@@ -61,13 +61,50 @@ class MockSupabaseAuth():
         response_dict= json.loads(response_str)
 
         for my_user in response_dict.get('data', []):
-            if my_user["email"] == email and my_user["password"] == password:
-                self.users.append(my_user)
-                return my_user
+            if my_user["email"] == email and my_user["password"] == password and my_user["role"]:
+                
+                email= my_user.get('email')
+                password= my_user.get('password')
+                role= my_user.get('role')
+                
+                token= generate_token(email, password, role, expires_in_hours=15) 
+                return {
+                    "token" : token,
+                    "user": my_user,
+                    "role": role
+                }
         return {"CREDENTIALS_MISMATCHED"}
 
     def user_profile(self, payload_apikey):
-            response= supabase.table('mockuser').select('*').eq('api_key', payload_apikey).execute()
-            user_data= response.data
+            response= supabase.table('mockuser').select('*').execute()
+            user_data= response.data # you get the list of dicts stored in key 'data'
+            logging.info(f"EXTRACTED_DB-DATA:{user_data}")
             return user_data 
+
+def generate_token(email, password, role, expires_in_hours):
+    payload= {
+        "email": email,
+        "password": password,
+        "role": role,
+        "exp": datetime.now(timezone.utc)+timedelta(hours=expires_in_hours)
+    }
+    token= jwt.encode(payload, settings.JWT_SECRET, settings.JWT_ALGORITHM)
+    return token
+
+def get_user_role_by_email(email: str):
+    response= supabase.from_('mockuser').select('*').eq('email', email ).execute()
+    response_str= response.json() # convert it to json-string
+    response_dict= json.loads(response_str)  # Convert string to dictionary
+    
+    logging.info(f"DATA_FROM_DB : {response_dict}")
+
+    for my_user in response_dict.get('data', []):
+        if my_user['email'] == email:
+            role= my_user['role']
+            return role
+        logging.info(f"USER_DATA_NOT_FOUND")
+    None
+
+
+    
 

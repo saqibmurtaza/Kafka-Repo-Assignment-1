@@ -8,6 +8,7 @@ message Product {
   string product_name = 2;
   string description = 3;
   float price = 4;
+  int32 quantity =5;
 }
 
 // Define a message for the operations on the Product

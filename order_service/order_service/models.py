@@ -1,40 +1,75 @@
 from pydantic import BaseModel
 from typing import Optional
 from sqlmodel import SQLModel, Field
+import uuid
 
-class Order(SQLModel, table=True):
+# class MyCart(SQLModel, table=True):
+#     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+#     item_name: str
+#     description: str
+#     price: float
+#     quantity: int
+#     payment_status: str
+
+# class MockCart(SQLModel, table=True):
+#     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+#     item_name: str
+#     description: str
+#     price: float
+#     quantity: int
+#     payment_status: str
+
+class CartPayload(BaseModel):
+    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    item_name: str
+    quantity: int
+
+class Cart(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
     item_name: str
+    description: str
     quantity: int
     price: float
-    status: str
+    payment_status: str
     user_email: str
-    user_phone: str
-    api_key: str= None
 
 
-class MockOrder(SQLModel, table=True):
+class MockCart(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
     item_name: str
+    description: str
     quantity: int
     price: float
-    status: str
+    payment_status: str
     user_email: str
-    user_phone: str
-    api_key: str= None
 
-class OrderCreated(BaseModel):
-    item_name: str
+class OrderCreate(BaseModel):
+    id: int # id is int in db_table_catalaoue, so keep int
     quantity: int
-    price: float
-    status: str
     user_email: str
-    user_phone: str
-    api_key: str= None
+    payment_status: str
+
+class OrderUpdate(BaseModel):
+    # id: str # id is str in db_table_mockorder, so keep str
+    quantity: int
+    user_email: str
+    payment_status: str
+
 
 class OrderStatusUpdate(BaseModel):
-    order_id: str 
+    order_id: str
     status: str
+
+# MOCK SETUP
+
+class MockOrderService:
+    def __init__(self):
+        self.orders = []
+    
+    def table(self, name:str):
+        if name == 'mock_order':
+            return MockTable(self.orders)
+        raise ValueError(f"NO_MOCK_TABLE_FOR_NAME {name}")
 
 class MockTable:
     def __init__(self, data):
@@ -48,8 +83,6 @@ class MockTable:
     def select(self, *args, **kwargs):
         return self
 
-    # Filter data based on column and value, 
-    # assuming data is a list of dictionaries
     def eq(self, column_name, value):
         # Directly access attributes of OrderProto
         self.filtered_data = [item for item in self._data if getattr(item, column_name) == value]

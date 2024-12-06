@@ -10,15 +10,18 @@ logger = logging.getLogger(__name__)
 class User(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
     username: str
+    role: str = Field(default="user")
     email: str
     password: str
     api_key: Optional[str] = None
     source: str = Field(default="real")  # Add this column to distinguish entries
+     
 
 # Mock User model
 class MockUser(SQLModel, table=True):
     id: Optional[str] = Field(default=None, primary_key=True)
     username: str
+    role: str = Field(default='user')
     email: str
     password: str
     api_key: Optional[str] = None
@@ -30,7 +33,9 @@ class NotifyUser(BaseModel):
     username: str
     email: str
     password: str
+    token: Optional[str] = None
     api_key: Optional[str] = None
+    role: Optional[str] = None
 
 class UserInfo(BaseModel):
     username: str
@@ -43,7 +48,7 @@ class LoginInfo(BaseModel):
 
 class UserMessage(BaseModel):
     action: str
-    user: User
+    user: List[User]
 
 class MockTable:
     def __init__(self, data):

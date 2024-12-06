@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     SUPABASE_DB_URL: str
     SUPABASE_KEY: str
 
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    ORDER_KEY: str
+
     class Config:
         env_file = '../.env'
         env_file_encoding = 'utf-8'
