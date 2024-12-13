@@ -2,8 +2,7 @@ from fastapi import HTTPException, Depends
 from supabase import Client
 from urllib.parse import unquote
 from .database import supabase
-from .models import Order, MockOrder
-from .mock_order import MockOrderService
+from .models import MockOrderService, MockCart, Cart
 import requests, logging, json, logging
 
 # FETCHED DATA THROUGH API CALLS
@@ -51,8 +50,8 @@ def fetch_inventory(name:str, apikey:str, token:str):
 
 async def fetch_cart_data(client):
 
-    model= MockOrder if isinstance(client, MockOrderService) else Order
-    table_name= 'mockorder' if model is MockOrder else 'order'
+    model= MockCart if isinstance(client, MockOrderService) else Cart
+    table_name= 'mockcart' if model is MockCart else 'cart'
 
     # Fetch Data from Supabase
     response= supabase.table(table_name).select('*').execute()

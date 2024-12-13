@@ -30,14 +30,22 @@ class UserMessage(BaseModel):
     action: str
     user: User
 
-class Order(BaseModel):
+# class Order(BaseModel):
+#     id: Optional[int] = None
+#     item_name: str
+#     quantity: int
+#     price: float
+#     status: str
+#     user_email: str
+#     user_phone: str
+class Cart(BaseModel):
     id: Optional[int] = None
     item_name: str
+    description: str
     quantity: int
     price: float
-    status: str
+    payment_status: str
     user_email: str
-    user_phone: str
 
 
 class Inventory(BaseModel):

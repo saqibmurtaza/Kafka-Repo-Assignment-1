@@ -1,15 +1,33 @@
 syntax = "proto3";
 
-package order;
-
 message OrderProto {
-    string id = 1;
+    optional string id = 1; 
     string item_name = 2;
-    int32 quantity = 3;
-    float price = 4;
-    string status = 5;
-    string user_email= 6;
-    string user_phone = 7;
-    string api_key = 9;
-    string action = 10;
+    string description = 3;
+    int32 quantity = 4;
+    float price = 5;
+    string payment_status = 6;
+    string user_email = 7;
 }
+
+message NotifyOrder {
+    string action = 1;
+    OrderProto data = 2;    // Field 'data' is of type 'OrderProto'
+}
+
+message CartProto {
+    string id = 1;          
+    double price = 2;       // Total price of the order
+}
+
+
+// INSTRUCTIONS:
+//COMMAND:
+
+//docker exec -it 7723a427c513c9e4dd52116a1d06060d6a512bd74c76c6671848f37ee576a97f /bin/bash
+
+//Run the command inside the order_service container
+//Note: Protoc command
+//protoc --python_out=. order.proto (dot for current dir)
+//This will generate order_pb2 in container
+//THERE IS NO NEED TO RUN IT IN ELSEWHERE -IT WORKS , IF YOU ONLY RUN IT IN CONTAINER

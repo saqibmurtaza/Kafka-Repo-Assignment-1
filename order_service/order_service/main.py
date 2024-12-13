@@ -190,7 +190,7 @@ async def update_cart(
 
     try:
         # Check if order exists in the database before updating
-        response = supabase.from_('mockorder').select('*').eq('id', order_id).execute()
+        response = supabase.from_('mockcart').select('*').eq('id', order_id).execute()
         if not response:
             raise HTTPException(status_code=404, detail="ORDER_NOT_FOUND")
 
@@ -406,46 +406,6 @@ async def view_cart_items(
     # Return the orders as JSON
     return orders
 
-# CART FUNCTIONALITY
-# @app.post("/cart", response_model=MockCart)
-# async def add_to_cart(
-#     payload: CartPayload,
-#     request: Request,
-#     client: Union[Client, MockOrderService] = Depends(get_client),
-#     session: Session = Depends(get_session)
-# ):
-
-#     cart_service = CartService(session, client, request)
-#     return await cart_service.add_to_cart(payload)
-
-# @app.put("/cart/{cart_id}")
-# async def update_cart(
-#     cart_id: str,
-#     payload: CartPayload,
-#     client: Union[Client, MockOrderService] = Depends(get_client),
-#     session: Session = Depends(get_session)
-# ):
-    
-#     cart_service = CartService(session, client)
-#     return await cart_service.update_cart(cart_id, payload)
-
-# @app.delete("/cart/{cart_id}")
-# async def delete_cart_item(
-#     cart_id: str,
-#     client: Union[Client, MockOrderService] = Depends(get_client),
-#     session: Session = Depends(get_session)
-# ):
-#     cart_service = CartService(session, client)
-#     return await cart_service.delete_cart_item(cart_id)
-
-# @app.get("/cart")
-# async def view_cart(
-#     client: Union[Client, MockOrderService] = Depends(get_client),
-#     session: Session = Depends(get_session)
-# ):
-#     cart_service = CartService(session, client)
-#     return await cart_service.view_cart()
-
 @app.post("/cart/checkout")
 async def checkout(
     request: Request,
@@ -457,6 +417,8 @@ async def checkout(
     cart_data_fetched= await fetch_cart_data(client)
 
     total_price= 0 # initialize local variable
+    stock_update_messages = []
+
     for my_item in cart_data_fetched:
         total_price += my_item['price'] * my_item['quantity']
 
@@ -491,49 +453,59 @@ async def checkout(
                             }
                         )
                     update_response.raise_for_status()  # Raise exception if update fails
-                    logging.info(f"Updated stock for item {item_name}: {new_stock}")
+                    message = f"Updated stock of item {item_name}: {new_stock}"
+                    logging.info(message)
+                    stock_update_messages.append(message)
                 else:
                     # Handle cases where the item is out of stock or insufficient
                     logging.warning(f"{item_name}_OUT_OF_STOCK")
                     return {"error": "ITEM_OUT_OF_STOCK"}
+        
+        # Call update_order_status to set the order status to "CONFIRMED"
+        # await update_order_status(
+        #     OrderStatusUpdate(order_id=my_item['id'], status="CONFIRMED"),
+        # )
+        # Process each item in the cart
+        for my_item in cart_data_fetched:
+            try:
+                await update_order_status(
+                    OrderStatusUpdate(order_id=my_item['id'], status="CONFIRMED")
+                )
+            except Exception as e:
+                logging.error(f"Failed to update status for item {my_item['item_name']}: {e}")
+
 
         # Return the payment status
         return {
             "TOTAL_PRICE": total_price, 
             "PAYMENT_STATUS": payment_status,
-            "MESSAGE": f"Updated stock for item {item_name}: {new_stock}"
+            "MESSAGE": stock_update_messages
             }
 
-@app.post("/api/orders/order_status")
-async def update_order_status(
-    payload: OrderStatusUpdate,
-    client: Union[MockOrderService, Client] = Depends(get_client),
-    session: Session = Depends(get_session)):
 
-    if isinstance(client, MockOrderService):
-        model = MockCart
-    else:
-        model = Cart
-    try:
-        # Fetch the order from the database using the provided order_id
-        order = session.query(model).filter(model.id == payload.order_id).first()
+async def update_order_status(payload: OrderStatusUpdate):
+    # Fetch the order from mockcart table using the order_id
+    response = supabase.from_('mockcart').select('*').eq('id', payload.order_id).execute()
+    
+    # Convert response to dictionary
+    response_dict = response.json()
+    if isinstance(response_dict, str):
+        response_dict = json.loads(response_dict)
+    
+    # Check if order exists
+    fetched_order = response_dict.get('data', [])
+    
+    if not fetched_order:
+        logging.error(f"Order {payload.order_id} not found.")
+        raise HTTPException(status_code=404, detail=f"Order {payload.order_id} not found.")
 
-        # Check if order exists
-        if not order:
-            logger.error(f"Order {payload.order_id} not found.")
-            raise HTTPException(status_code=404, detail=f"Order {payload.order_id} not found.")
+    # Update the order's status in mockcart table
+    update_response = supabase.from_('mockcart').update({'payment_status': payload.status}).eq('id', payload.order_id).execute()
+    
+    logging.info(f"Order {payload.order_id} updated to {payload.status}")
+    return {"message": f"Order {payload.order_id} updated to {payload.status}"}
 
-        # Update the order's status
-        order.status = payload.status
-        session.add(order)
-        session.commit()
 
-        logger.info(f"Order {payload.order_id} updated to {payload.status}")
-        return {"message": f"Order {payload.order_id} updated to {payload.status}"}
-
-    except Exception as e:
-        logger.error(f"Failed to payload order {payload.order_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to payload order status")
 
 
 """
@@ -542,4 +514,3 @@ entities that were added to or loaded by the session directly.
 Without prior attachment (via add or merge), refresh cannot reload 
 the data.
 """
-

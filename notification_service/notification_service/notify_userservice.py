@@ -79,6 +79,7 @@ async def send_profile_email(payload_list: list[dict]):
     ONLINE SHOPPING MALL - TEAM
     """
     for my_list in payload_list:
+        logging.info(f"Processing profile: {my_list}")
         if my_list['role'] == 'admin':
             try:
                 await send_email(my_list["email"], subject, body)

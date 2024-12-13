@@ -1,8 +1,9 @@
 from supabase import Client
 from typing import Union
-from .mock_order import MockOrderService
 from .settings import settings
+from .models import MockOrderService
 import os, supabase, logging
+
 
 logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)

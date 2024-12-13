@@ -1,6 +1,6 @@
-from .models import Order
+from .models import Cart
 from .email_function import send_email
-from .order_pb2 import OrderProto
+from .order_pb2 import NotifyOrder
 import logging
 
 
@@ -10,16 +10,18 @@ logger = logging.getLogger(__name__)
 #################################################
 ##### ORDER_SERVICE_MESSAGE_PROCEESSING_FUNCTION
 #################################################
-async def process_order_message(message: OrderProto ):
+async def process_order_message(message: NotifyOrder ):
     logging.info(f"ORDER RECD IN PAYLOAD: {message}")
     try:
-        data = Order(
-            item_name=message.item_name,
-            quantity=message.quantity,  
-            price=message.price,        
-            status=message.status,      
-            user_email=message.user_email, 
-            user_phone=message.user_phone
+        # Extract the OrderProto data from the NotifyOrder message
+        order_data = message.data
+        data = Cart(
+            item_name=order_data.item_name,
+            description=order_data.description,
+            quantity=order_data.quantity,
+            price=order_data.price,
+            payment_status=order_data.payment_status,
+            user_email=order_data.user_email
         )
 
         await send_order_email(data)
@@ -30,9 +32,16 @@ async def process_order_message(message: OrderProto ):
 #################################################
 ##### ORDER_SERVICE_EMAIL_FUNCTION
 #################################################
-async def send_order_email(data: Order):
-    subject = f"Order {data.status}"
-    body = f"Your order for {data.item_name} is now {data.status}."
+async def send_order_email(data: Cart):
+    subject = f"ORDER STATUS"
+    body = f"""
+    YOUR ORDER DETAILS:
+    PAYMENT STATUS : {data.payment_status}
+    DESCRIPTION: {data.description}
+    PRICE: {data.price}
+    QUANTITY: {data.quantity}
+    USER_EMAIL: {data.user_email}
+    """
     await send_email(data.user_email, subject, body)
 
     logging.info(f"EMAIL_SENT_TO_{data.user_email}")

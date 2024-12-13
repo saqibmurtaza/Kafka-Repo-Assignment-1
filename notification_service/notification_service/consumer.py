@@ -2,12 +2,12 @@ from fastapi import HTTPException
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
 from .inventory_pb2 import Inventory as InvProto, InventoryUpdates as InvMessage
-from .order_pb2 import OrderProto
+from .order_pb2 import OrderProto, NotifyOrder
 from .settings import settings
 from .notify_orderservice import process_order_message
 from .notify_userservice import send_signup_email, send_login_email, send_profile_email
 from .notify_invservice import process_inventory_message
-import asyncio, json, logging, traceback
+import asyncio, json, logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,14 +29,14 @@ async def start_consumer(topic, bootstrap_server, consumer_group_id ):
             await asyncio.sleep(5)    
     try:
         async for msg in consumer:
-            logging.info(f'RECEIVED_MSG_IN_CONSUMER:{msg}')
+            # logging.info(f'RECEIVED_MSG_IN_CONSUMER:{msg}')
             topic= msg.topic
 
             if topic == settings.TOPIC_USER_EVENTS:
                 # Decode received messages
                 decoded_json_msg= msg.value.decode('utf-8') # from bytes to json_formated string
                 payload_list= json.loads(decoded_json_msg) # from string to dict
-
+                
                 # Check if payload_list is a dictionary (Signup or login case)
                 if isinstance(payload_list, dict):
                     action = payload_list.get('action')
@@ -56,7 +56,7 @@ async def start_consumer(topic, bootstrap_server, consumer_group_id ):
                                     await send_profile_email(user_list)
 
             elif topic == settings.TOPIC_ORDER_STATUS:
-                decoded_order_msg= OrderProto()
+                decoded_order_msg= NotifyOrder()
                 decoded_order_msg.ParseFromString(msg.value)
 
         # FUNCTION_CALL

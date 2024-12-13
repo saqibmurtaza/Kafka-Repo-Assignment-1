@@ -3,22 +3,6 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 import uuid
 
-# class MyCart(SQLModel, table=True):
-#     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-#     item_name: str
-#     description: str
-#     price: float
-#     quantity: int
-#     payment_status: str
-
-# class MockCart(SQLModel, table=True):
-#     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-#     item_name: str
-#     description: str
-#     price: float
-#     quantity: int
-#     payment_status: str
-
 class CartPayload(BaseModel):
     id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     item_name: str
